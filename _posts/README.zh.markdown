@@ -1,14 +1,16 @@
+```
 ---
 layout:     post
-title:      "Example Post"
-subtitle:   "How to use this blog！"
-date:       2019-03-12
+title:      "Hello 2015"
+subtitle:   "Hello World, Hello Blog"
+date:       2015-01-29 12:00:00
 author:     "Hux"
-header-img: "img/post-bg-js-version.jpg"
+header-img: "img/post-bg-2015.jpg"
 tags:
-    - 转载
-    - Blog搭建
+    - Life
 ---
+
+```
 
 # blog 模板
 
