@@ -1,16 +1,15 @@
-```
 ---
 layout:     post
-title:      "Hello 2015"
-subtitle:   "Hello World, Hello Blog"
-date:       2015-01-29 12:00:00
+title:      "Example Post"
+subtitle:   "不适合人类阅读，非常水的自我笔记"
+date:       2015-04-14
 author:     "Hux"
-header-img: "img/post-bg-2015.jpg"
+header-img: "img/post-bg-unix-linux.jpg"
 tags:
-    - Life
+    - OS
+    - Unix
+    - Linux
 ---
-
-```
 
 # blog 模板
 
