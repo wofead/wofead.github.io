@@ -6,9 +6,7 @@ date:       2019-02-12
 author:     "Jow"
 header-img: "img/post-bg-js-version.jpg"
 tags:
-    - 前端开发
-    - JavaScript
-    - 翻译
+    - Test
 ---
 
 
