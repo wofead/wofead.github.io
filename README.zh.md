@@ -233,5 +233,3 @@ There are a number of tasks it performs like minification of the JavaScript, com
 
 3. 感谢 Jekyll、Github Pages 和 Bootstrap!
 
-
-
