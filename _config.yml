@@ -1,22 +1,30 @@
 # Site settings
-title: Your Blog
-SEOTitle: 你的博客 | Your Blog
-header-img: img/home-bg.jpg
-email: huxpro@gmail.com
-description: ""
-keyword: ""
-url: "http://huangxuan.me"              # your host, for absolute URL
-baseurl: "/huxblog-boilerplate"         # for example, '/blog' if your blog hosted on 'host/blog'
+title: Cute Blog
+SEOTitle: Jow的博客 | Cute Blog
+header-img: img/home-bg.jpg   
+email: h614667387@gmail.com
+description: "I find myself in github."  #座右铭
+keyword: "Jow,Jow Blog,Game,Unity,诗歌,Guitar,Sing"
+url: "https://wofead.github.io"              # your host, for absolute URL
+baseurl: ""         # for example, '/blog' if your blog hosted on 'host/blog'
+github_repo: "https://github.com/wofead/wofead.github.io" # you code repository
 
+
+# Sidebar settings
+sidebar: true                           # whether or not using Sidebar.
+sidebar-about-description: "像钟声一样，敛而后散。"
+sidebar-avatar: /img/avatar-hux.jpg      # use absolute URL, seeing it's used in both `/` and `/about/`
 
 
 # SNS settings
 RSS: false
-weibo_username:     huxpro
-zhihu_username:     huxpro
-github_username:    huxpro
-#twitter_username:  huxpro
-facebook_username:  huxpro
+# weibo_username:     Jow
+# zhihu_username:     Jow
+github_username:    wofead
+facebook_username:  Mengwei Hou
+#jianshu_username:   jow
+#twitter_username:  Jow
+
 
 
 
@@ -50,26 +58,30 @@ kramdown:
 #disqus_username: _your_disqus_short_name_
 
 # Duoshuo settings
-duoshuo_username: huxblog
+#duoshuo_username: huxblog
 # Share component is depend on Comment so we can NOT use share only.
-duoshuo_share: true                     # set to false if you want to use Comment without Sharing
-
+#duoshuo_share: true                     # set to false if you want to use Comment without Sharing
+# Gitalk
+gitalk:
+  enable: true    #是否开启Gitalk评论
+  clientID: 51c07e5f611e3ad089be                            #生成的clientID
+  clientSecret: 36096ccd4f5032cb5dc239c97a1d6181730bb5b3    #生成的clientSecret
+  repo: wofead.github.io    #仓库名称
+  owner: wofead    #github用户名
+  admin: wofead
+  distractionFreeMode: true #是否启用类似FB的阴影遮罩
 
 
 
 # Analytics settings
 # Baidu Analytics
-ba_track_id: 4cc1f2d8f3067386cc5cdb626a202900
+# ba_track_id: 4cc1f2d8f3067386cc5cdb626a202900
 # Google Analytics
-ga_track_id: 'UA-49627206-1'            # Format: UA-xxxxxx-xx
-ga_domain: huangxuan.me
+# ga_track_id: 'UA-49627206-1'            # Format: UA-xxxxxx-xx
+ga_domain: auto                 # 默认的是 auto, 这里我是自定义了的域名，你如果没有自己的域名，需要改成auto
 
 
 
-# Sidebar settings
-sidebar: true                           # whether or not using Sidebar.
-sidebar-about-description: "写写代码，做做设计，看看产品。世界那么大，多玩玩看看。"
-sidebar-avatar: /img/avatar-hux.jpg      # use absolute URL, seeing it's used in both `/` and `/about/`
 
 
 
@@ -82,8 +94,8 @@ featured-condition-size: 1              # A tag will be featured if the size of 
 # Friends
 friends: [
     {
-        title: "Hux Blog",
-        href: "http://huangxuan.me"
+        title: "Apple",
+        href: "https://apple.com"
     },{
         title: "Foo",
         href: "#"
