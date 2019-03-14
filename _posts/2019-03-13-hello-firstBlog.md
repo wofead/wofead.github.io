@@ -4,7 +4,7 @@ title:      第一篇博客
 subtitle:   万事开头难
 date:       2019-3-13
 author:     Jow
-header-img: img/post-bg-ios9-web.jpg
+header-img: img/post-bg-2015.jpg
 catalog: 	 true 
 tags:
     - Blog
