@@ -8,7 +8,7 @@
         "type": "git",
         "url": "https://github.com/wofead/wofead.github.io"
     },
-    "bugs": "https://github.com/qiubaiying/qiubaiying.github.io/issues",
+    "bugs": "https://github.com/wofead/wofead.github.io/issues",
     "devDependencies": {
         "grunt": "~0.4.5",
         "grunt-contrib-less": "~0.11.4",
