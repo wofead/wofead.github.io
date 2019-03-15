@@ -70,8 +70,8 @@ kramdown:
 # Gitalk
 gitalk:
   enable: true    #是否开启Gitalk评论
-  clientID: 51c07e5f611e3ad089be                            #生成的clientID
-  clientSecret: 36096ccd4f5032cb5dc239c97a1d6181730bb5b3    #生成的clientSecret
+  clientID: abff3c57dfc3209af193                            #生成的clientID
+  clientSecret: f68303069fa0818f7132d45a4ccc30f85be90d04    #生成的clientSecret
   repo: wofead.github.io    #仓库名称
   owner: wofead    #github用户名
   admin: wofead
