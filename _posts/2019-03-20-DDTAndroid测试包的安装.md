@@ -28,7 +28,8 @@ tags:
 自运地址版一般拷贝到： Android\obb\com.wan.ddtjdb 文件夹中
 其中com.wan.ddtjdb文件夹开始没有,需要创建
 ## obb讲解
-
+obb 文件即数据包
+obb文件时一个比较特别的文件，他的名字和位置直接影响数据包能否被游戏正常加载。
 
 
 
