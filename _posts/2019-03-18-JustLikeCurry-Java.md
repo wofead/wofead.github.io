@@ -121,4 +121,92 @@ get(Object key)
 keySet()  返回该集合中所有对象形成的set集合
 values() 返回该集合中所有值对象形成的Collection集合
 HashMap效率更高 允许存在null对象
-TreeMap还继承了SortedMap接口 所以存储是有序的 不允许null
+TreeMap还继承了SortedMap接口 所以存储是有序的 不允许null.
+
+## I/O
+包括 File 读取文件或者文件夹 可以通过isDictionary来判断是否是文件夹
+File file = new File("文件路径")
+1. getName
+2. canRead
+3. canWrite
+4. exits
+5. length 获取文件的长度
+6. getAbsolutePath 绝对路径
+7. getPatent 获取文件的父路径
+8. isFile 是否是文件
+9. isDictionary 是否是目录
+10. isHidden 是否为隐藏文件
+11. lastModifid 文件最近一次修改时间
+
+### outStream and inputSream
+输出流，将信息输出到输出目标中 文件、网络、压缩包、其它数据输出目标中
+输入流，将信息从文件、网络等中读取出来放到目的地
+
+InputStream 字节输入流 ，所有字节输入流的父类
+子类包括：audio、byteArray、stringBuffer、file、filter、object、sequence、piped
+其中filter子类又包括：buffer、data、pushback等
+方法：
+1. read() 读取下一个自己 返回0~255的int字节值 到达流的末尾 返回-1
+2. read(byte[] b) 读取一定长度的字节，整数形式返回字节数
+3. mark(int readlimit) 在输入流的当前位置放置一个标记，readlimit参数告知此输入流在标记失效之前允许读取的字节数
+4. reset() 讲治镇返回到当前所做的标记处
+5. skip(long n) 跳过输入流上的n字节 并返回跳过的字节数
+6. MarkSupported 是否支持标记
+7. close 关闭流
+
+除了字节输入流还有字符输入流
+**Reader** 子类：CharArray、Buffered ->:LineNumber、Filter->pushBack、InputStream-file、piped、string
+
+输出流 outStream
+子类： bytearray、file、filter->buffered和data、object、piped
+方法：
+1. write: 参数类型 int、byte[]、byte[] off len
+2. flush() 彻底完成输出并且清空缓存区
+3. close
+
+**writer:**子类和reader 相比 多一个print 加上一个file
+
+**file类**
+file类唯一代表磁盘文件本身的对象 可以读取文件、文件夹、压缩等一系列的磁盘文件
+数据流可以将数据写入到文件中
+
+### 文件的输入输出流
+FileInputStream/FileOutputStream 文件字节输入输出流
+通过FileOutputStream流将字节数组写进文件中，要先将数据转化为字节数组
+通过FileInputStream read到byte[] 数组中 read在将数据写入到数组的同是会将长度返回 然后将字节数组装换位string打印
+
+除了字节输入输出之外还有字符输入和输出
+FileReader和Filewriter
+可以以字符串的形式写入到文件中，以char[] 的形式从文件中读出
+
+### 带缓冲区的输入和输出
+数据信息在进入流之前可以缓存在缓存区当中 每当缓存区满了往流中注入一次数据，避免频繁的I/O操作
+文件->inputstream->bufferedinputdtream->target
+data->bufferWriter->outputStreamWriter->outputstream->文件
+
+### 数据输入输出流
+在文件输入输出流之后可以添加数据输入输出流  然后写入文件和读取文件
+### zip输入输出流(自己有时间要再次实现 imp)
+ZipOutinputStream
+putNextEntry(new Entry(base)) //创建进入节点
+进行递归
+一直到所有的文件都被压缩
+是文件夹 fls = f.listFiles();然后分别压缩
+不是文件夹 ： 是文件 先读取 然后写入out中
+
+解压缩 遍历获取 getNextEntry() 是否为空和文件夹 然后通过输入流转换 再通过文件输出流输出到文件中
+
+## 反射
+Java 通过反射机制，可以在程序中访问已经装载到JVM中的Java对象的描述
+实现访问、检测和修改描述Java对象本身的信息功能。
+getClass() 方法，返回一个类型为Class的对象。
+1. getPackage()  包名
+2. getName()   名字
+3. getSuperClass()  父类
+4. getInterfaces() 该类实现的所有接口
+5. getConstructors()  权限为public的构造函数组
+6. getConstructor(Class<?> ...) //Class.int or string ...  根据参数获得构造函数
+7. getDeclaredConstructors()  所有构造函数
+8. getDeclaredConstructor(Class<?> ...)
+9. getMethods()  方法
+10. getMethod(Class<?> ...)
