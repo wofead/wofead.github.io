@@ -210,3 +210,246 @@ getClass() 方法，返回一个类型为Class的对象。
 8. getDeclaredConstructor(Class<?> ...)
 9. getMethods()  方法
 10. getMethod(Class<?> ...)
+11. getDeclaredMethods()
+12. 带参数的
+13. getFields()  //成员变量
+14. getField(String name)
+15. getDeclaredFields)
+16. getDeclaredField(String name)
+17. getClasses()  //内部类 public
+18. getDeclaredClasses() //所有
+19. getDeclaringClass() //如果该类为内部类，则返回它的成员类，否则返回null
+**attention：**
+getFields和个人Methods 获得权限为public的，包含父类的
+getDeclared 获得只是在本类中的所有
+
+### 反射的获取和执行
+#### 1. 访问构造方法
+首先获取对象的类 ,然后获取所有声明的构造方法
+选择一个构造方法进行实现
+其中如果方法为private 需要设置accessible为true 才能调用
+如果参数为不确定个 即：...
+需要使用二维数组,即二维数组的第一个参数
+```java
+object[]  {new String[]{"10","20"}}
+```		
+```java
+Clasee<? extends Example> exampleC = example.getClass();
+Construct[] constructs = exampleC.getDeclaredConstructors();
+Construct construct = constructs[0];
+Example example1 = null;
+while(example1 == null){
+	try{
+		example1 = (Example)construct.newInstence();
+	}catch(Exception e){
+		printStackTrace();
+		construct.setAccessible(true);
+	}
+}
+```
+**方法中常用的方法**
+1. isVarArgs()  是否允许带有可变参数变量
+2. getParameterTypes 以Class数组的方式获取改构造函数的各个参数
+3. newInstence(Obeject...initargs)//new一个对象
+4. setAccessible(boolean flag)
+5. getModifiers()  获得可以解析出该构造方法所采用的修饰符整数
+6. isPublic(int mod)  参数就是修饰该构造方法的整数
+7. isProtected(int mod)
+8. isPrivate(int mod)
+9. isStatic(int mod)
+10. isFinal(int mod)
+11. toString(int mod)//以字符串的形式返回所有的修饰符
+
+#### 2.访问成员变量
+
+```java
+Field[] fields = exampleC.getDeclaredFields();
+Field field = fields[0];
+```		
+下面是Field类中常用的方法
+**在下面的参数obj为实例化出来的对象** 
+**被getClass出来的Class并不是对象，而是一个类，类似模板**
+**判断一个成员的类型使用 int.class float.class ...**
+1. getName()
+2. getType()  获得表示该成员变量的名称
+3. get(Object obj) //获得指定对象obj中成员变量的值，返回值为Object
+4. set(Object obj,Object value)
+5. getInt(Obejct obj) 还有Float，Boolean以及setInt...   
+6. setAccessible(boolean flag)
+7. getModifiers()  修饰符的整数
+
+#### 3.访问方法
+```java
+Method[] methods = exampleC.getDeclaredMethods();
+Mothed mothed = methods[0];
+```		
+1. geName()
+2. getParameterTypes()
+3. getRetyrnType()
+4. getExceptionTypes()
+5. invoke(Object obj,Object...args)
+6. isVarArgs()
+7. getModifiers()
+
+### Annnotation(注解)
+注解在平时使用的时候可能用的不深的时候没什么作用，但是如果进行深层次的应用真的非常重要，所以还请认真学习。
+注解类的声明：
+```java
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface test{
+	String name() default "";
+}
+```	
+
+@Target来约束注解可以使用的地方：
+
+
+ 	/**标明该注解可以用于类、接口（包括注解类型）或enum声明*/
+    TYPE,
+
+    /** 标明该注解可以用于字段(域)声明，包括enum实例 */
+    FIELD,
+
+    /** 标明该注解可以用于方法声明 */
+    METHOD,
+
+    /** 标明该注解可以用于参数声明 */
+    PARAMETER,
+
+    /** 标明注解可以用于构造函数声明 */
+    CONSTRUCTOR,
+
+    /** 标明注解可以用于局部变量声明 */
+    LOCAL_VARIABLE,
+
+    /** 标明注解可以用于注解声明(应用于另一个注解上)*/
+    ANNOTATION_TYPE,
+
+    /** 标明注解可以用于包声明 */
+    PACKAGE,
+
+    /**
+     * 标明注解可以用于类型参数声明（1.8新加入）
+     * @since 1.8
+     */
+    TYPE_PARAMETER,
+
+    /**
+     * 类型使用声明（1.8新加入)
+     * @since 1.8
+     */
+    TYPE_USE
+	当注解未指定Target的时候，则此注解可以用于任何元素只上，多个值使用{}包含并用逗号隔开 如下
+``` java
+@Target(value={ElementType.CONSTRUCTOR, ElementType.FIELD, ElementType.LOCAL_VARIABLE, ElementType.METHOD, ElementType.PACKAGE, ElementType.PARAMETER, ElementType.TYPE})
+```
+使用@Retention用来约束注解的声明周期，分别有三个值，源码级别（source），类文件级别（class）或者运行时级别（runtime）.
+1. SOURCE：注解将被编译器丢弃（该类型的注解信息只会保留在源码里，源码经过编译后，注解信息会被丢弃，不会保留在编译好的class文件里）
+2. CLASS：注解在class文件中可被使用，但会被JVM丢弃（该类型的注解信息会保留在源码里和class文件里，在执行的时候，不会加载到虚拟机中），请注意，当注解未定义Retention值时，默认值是CLASS，如Java内置注解，@Override、@Deprecated
+3. RUNTIME：注解信息在运行期（JVM）也保留，因此可以通过反射机制读取注解的信息（源码、class文件和执行的时候都有注解的信息），如SpringMvc中的@Controller、@Autowired、@RequestMapping等。
+
+注解支持的元素数据类型
+* 所有基本类型（int,float,boolean,byte,double,char,long,short）
+* String
+* Class
+* enum
+* Annotation
+* 上述类型的数组
+
+```java
+package com.zejian.annotationdemo;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@interface Reference{
+    boolean next() default false;
+}
+
+public @interface AnnotationElementDemo {
+    //枚举类型
+    enum Status {FIXED,NORMAL};
+
+    //声明枚举
+    Status status() default Status.FIXED;
+
+    //布尔类型
+    boolean showSupport() default false;
+
+    //String类型
+    String name()default "";
+
+    //class类型
+    Class<?> testCase() default Void.class;
+
+    //注解嵌套
+    Reference reference() default @Reference(next=true);
+
+    //数组类型
+    long[] value();
+}
+```
+**编译器对默认值的限制**
+1. 元素不能有不确定的值，要么具有默认值，要么在使用注解时提供元素的值
+2. 对于非基本类型的元素，无论是在源代码中声明，还是在注解接口中定义默认值，都不能以null作为值：只能定义一些特殊的值，例如空字符串或负数，表示某个元素不存在
+
+**注解不支持继承** 不能使用关键字extends来继承某个@interface，但注解在编译后，编译器会自动继承java.lang.annotation.Annotation接口
+#### 快捷方式
+所谓的快捷方式就是注解中定义了名为value的元素，并且在使用该注解时，如果该元素是唯一需要赋值的一个元素，那么此时无需使用key=value的语法，而只需在括号内给出value元素所需的值即可。这可以应用于任何合法类型的元素，记住，这限制了元素名必须为value，简单案例如下
+```java
+package com.zejian.annotationdemo;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+//定义注解
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.RUNTIME)
+@interface IntegerVaule{
+    int value() default 0;
+    String name() default "";
+}
+
+//使用注解
+public class QuicklyWay {
+
+    //当只想给value赋值时,可以使用以下快捷方式
+    @IntegerVaule(20)
+    public int age;
+
+    //当name也需要赋值时必须采用key=value的方式赋值
+    @IntegerVaule(value = 10000,name = "MONEY")
+    public int money;
+
+}
+```
+**Java8新增@Repeatable原注解**
+```java
+//使用Java8新增@Repeatable原注解  下面这两种方式都可以 第一种为新特性
+@Target({ElementType.TYPE,ElementType.FIELD,ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@Repeatable(FilterPaths.class)//参数指明接收的注解class
+public @interface FilterPath {
+    String  value();
+}
+
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@interface FilterPaths {
+    FilterPath[] value();
+}
+
+//使用案例
+@FilterPath("/web/update")
+@FilterPath("/web/add")
+@FilterPath("/web/delete")
+class AA{ }
+```
+##
