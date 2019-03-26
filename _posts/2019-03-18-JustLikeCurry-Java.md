@@ -21,6 +21,8 @@ tags:
 7. 集合类
 8. I/O
 9. 反射
+10. 枚举
+11. 泛型
 
 > 没有人会莫名其妙的喜欢你和讨厌你，只有你自己喜欢你自己，并且按照自己内心真正正确的道路走下去，这样你才能让自己和别人喜欢。
 
@@ -454,4 +456,94 @@ public @interface FilterPath {
 @FilterPath("/web/delete")
 class AA{ }
 ```
-##
+## 枚举
+枚举和类没有什么区别 只不过不可以继承了而已，因为他已经继承了枚举基类，但是他还是可以实现接口
+枚举常用的函数：
+1. values()  //以数组的形式返回所有的枚举成员
+2. valueOf() //将普通字符串转换为枚举实例
+3. comareTo() //比较两个枚举对象在定义时的顺序
+4. ordinal（） //获取枚举对象的位置索引
+
+## 泛型
+> 泛型实质上是使程序员定义安全的类型。
+> 泛型的机制 类名\<T\>
+
+```java
+public class OverClass<T>{
+	T value;
+	public T getValue(){
+		return this.value;
+	}
+
+	public void setValue(T value){
+		this.value = value;
+	}
+}
+
+OverClass<Boolean> overClass = new OverClass<Boolean>();
+overClass.setValue(true);
+System.out.println(overClass.getValue);
+```
+**在定义泛型类的时候，一般类型名称使用T来表示，而容器的元素使用E来表示**
+
+1. 定义泛型类时声明多个类型
+```java
+MutiOverClass<T1,T2>
+MutiOverClass:泛型名称
+MutiOverClass<Boolean, Float> muti = new MutiOverClass<Boolean, Float>();
+
+```
+
+2. 定义泛型类时生声明数组类型
+```java
+public class ArrayClass<T>{
+	T[] value;
+	public T getValue(){
+		return this.value;
+	}
+
+	public void setValue(T[] value){
+		this.value = value;
+	}
+}
+
+OverClass<Boolean> overClass = new OverClass<Boolean>();
+Boolean[] booleans = {true,false,true}
+overClass.setValue(booleans);
+System.out.println(overClass.getValue);
+
+```
+2. 集合类声明容器的元素
+
+* ArrayList  ArrayList<E>
+* HashMap  ArrayList<K,V>
+* HashSet  ArrayList<E>
+* Vector  ArrayList<E>
+
+###泛型的高级应用
+1. 限制泛型可用类型
+	
+```java
+class 类名称<T extends anyClass>
+```
+其中anyClass指的是某个接口或者类，被这个接口限制后，泛型类的类型必须实现或者继承了这个类
+
+2. 使用类型通配符
+其作用是在创建一个泛型类对象时限制这个泛型类的类型实现或继承某个接口或类的子类。
+<? extends List> 表示类型未知，但限制为List
+```java
+泛型名称A<？ extends List> = null
+a = new A<ArrayList>();
+a = new A<LinkedList>();
+```
+
+3. 继承泛型类与实现泛型接口
+subclass 继承ExA时保留父类的泛型类型
+```java
+public class ExA<T1>{}
+class subClass<T1,T2,T3> extends Exa<T1>{}
+泛型名称A<？ extends List> = null
+a = new A<ArrayList>();
+a = new A<
+```
+
