@@ -14,7 +14,7 @@ github_repo: "https://github.com/wofead/wofead.github.io" # you code repository
 sidebar: true                           # whether or not using Sidebar.
 sidebar-about-description: "像钟声一样，敛而后散。"
 sidebar-avatar: /img/avatar-hux.jpg      # use absolute URL, seeing it's used in both `/` and `/about/`
-
+future: true
 
 # SNS settings
 RSS: false
@@ -33,14 +33,14 @@ facebook_username:  mengwei.hou.351
 highlighter: rouge
 permalink: pretty
 paginate: 10
-exclude: ["less","node_modules","Gruntfile.js","package.json","README.md"]
+exclude: ["less","node_modules","Gruntfile.js","package.json","README.md","README.zh.md"]
 anchorjs: true                          # if you want to customize anchor. check out line:181 of `post.html`
 
 
 
 # Gems
 # from PR#40, to support local preview for Jekyll 3.0
-gems: [jekyll-paginate]
+plugins: [jekyll-paginate]
 
 
 
@@ -77,7 +77,7 @@ gitalk:
   admin: wofead
   distractionFreeMode: true #是否启用类似FB的阴影遮罩
 
-
+netease_comment: false
 
 # Analytics settings
 # Baidu Analytics
@@ -100,22 +100,46 @@ chrome-tab-theme-color: "#000000"
 service-worker: true
 
 
+
+# MathJax rendering for layout:page (e.g. post preview)
+page-mathjax: false
+
+
+
 # Friends
-friends: [
-    {
-        title: "Apple",
-        href: "https://apple.com"
-    },{
-        title: "Foo",
-        href: "#"
-    },{
-        title: "Bar",
-        href: "#"
-    },{
-        title: "Example Friends",
-        href: "#"
-    },{
-        title: "It helps SEO",
-        href: "#"
-    }
-]
+#friends: [
+#    {
+#        title: "Apple", 
+#	href: "https://apple.com"
+#
+#
+#
+#   },{
+#
+#
+#
+#
+#
+#
+#
+#
+#
+ #       title: "Foo",
+#        href: "#"
+#    },{
+#        title: "Bar",
+#        href: "#"
+#    },{
+#        title: "Example Friends",
+#        href: "#"
+#    },{
+#        title: "It helps SEO",
+#        href: "#"
+#
+#
+#
+#
+#
+#
+#    }
+#]

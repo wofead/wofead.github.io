@@ -1,7 +1,7 @@
 ---
 layout:     post
 title:      Lua 学习 chapter1
-subtitle:   Postfix Templates
+subtitle:   chapter1
 date:       2019-4-12
 author:     Jow
 header-img: img/lua-study.jpg
