@@ -3,118 +3,26 @@ layout: page
 title: "About"
 description: "Hey, this is Jow."
 header-img: "img/about-bg.jpg"
+multilingual: true
 ---
 
 <!-- Language Selector -->
-<select onchange= "onLanChange(this.options[this.options.selectedIndex].value)">
+<select class="sel-lang" onchange= "onLanChange(this.options[this.options.selectedIndex].value)">
     <option value="0" selected> 中文 Chinese </option>
     <option value="1"> 英语 English </option>
 </select>
 
 <!-- Chinese Version -->
 <div class="zh post-container">
-    <blockquote>
-        面朝大海，春暖花开
-    </blockquote>
-    钟声 <br>
-
-    敛住又敲散 <br>
-    一街的荒凉 <br>
-    听—— <br>
-    那圆的一颗颗声响， <br>
-    直沉下时间 <br>
-    静寂的 <br>
-    咽喉。 <br>
-
-
-    像哭泣， <br>
-    像哀恸， <br>
-    将这僵黑的 <br>
-    中夜 <br>
-    葬入 <br>
-    那永不见曙星的 <br>
-    空洞—— <br>
-    轻——重…… <br>
-    ——重——轻…… <br>
-    这摇曳的一声声， <br>
-    又凭谁的主意 <br>
-    把那余剩的忧惶 <br>
-    随着风冷—— <br>
-    纷纷 <br>
-    掷给还不成梦的人。 <br>
-
-    <p style="text-align:right;">
-        —— 林徽因 － 中夜钟声
-    </p>
-
+    {% capture about_zh %}{% include about/zh.md %}{% endcapture %}
+    {{ about_zh | markdownify }}
 </div>
 
 <!-- English Version -->
 <div class="en post-container">
-    <blockquote>
-        Face to sea，Spring flowers
-    </blockquote>
-
-    <p>Jow what i just want to be, modesty and grow then burst yourself. </p>
-    <p style="text-align:right;">
-    -- Huiyin Lin － Jow of deep night
-    </p>
-
+    {% capture about_en %}{% include about/en.md %}{% endcapture %}
+    {{ about_en | markdownify }}
 </div>
-
-<!-- Handle Language Change -->
-<script type="text/javascript">
-    var $zh = document.querySelector(".zh");
-    var $en = document.querySelector(".en");
-    function onLanChange(index){
-        if(index == 0){
-            $zh.style.display = "block";
-            $en.style.display = "none";
-        }else{
-            $en.style.display = "block";
-            $zh.style.display = "none";
-        }
-    }
-    onLanChange(0);
-</script>
-
-
-
-{% if site.duoshuo_username %}
-<!-- 多说评论框 start -->
-<div class="comment">
-    <div class="ds-thread"
-    {% if site.duoshuo_username == "huxblog" %}
-        data-thread-id="1187623191091085319"
-    {% else %}
-        data-thread-key="{{site.duoshuo_username}}/about"
-    {% endif %}
-
-    data-title="{{page.title}}"
-    data-url="{{site.url}}/about/"></div>
-</div>
-<!-- 多说评论框 end -->
-
-<!-- Duoshuo hacking -->
-<input id="dsUser" type="hidden" value="{{site.duoshuo_username}}"  />
-
-<!-- 多说公共JS代码 start (一个网页只需插入一次) -->
-<script type="text/javascript">
-    // dynamic User hacking by Hux
-    var _user = document.getElementById('dsUser').value;
-    // duoshuo comment query.
-    var duoshuoQuery = {short_name: _user };
-    (function() {
-        var ds = document.createElement('script');
-        ds.type = 'text/javascript';ds.async = true;
-        ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
-        ds.charset = 'UTF-8';
-        (document.getElementsByTagName('head')[0]
-         || document.getElementsByTagName('body')[0]).appendChild(ds);
-    })();
-</script>
-<!-- 多说公共JS代码 end -->
-{% endif %}
 
 
 {% if site.disqus_username %}
