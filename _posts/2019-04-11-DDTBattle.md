@@ -2,7 +2,7 @@
 layout:     post
 title:      DDT Battle
 subtitle:   翼精灵的添加
-date:       2019-4-12
+date:       2019-4-11
 author:     Jow
 header-img: img/post-bg-2015.jpg
 catalog: 	 true 

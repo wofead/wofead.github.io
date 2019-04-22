@@ -2,9 +2,9 @@
 layout:     post
 title:      Lua 学习 chapter1
 subtitle:   chapter1
-date:       2019-4-12
+date:       2019-4-21
 author:     Jow
-header-img: img/lua-study.jpg
+header-img: img/in-post/luaStudy/chapter.jpg
 catalog: 	 true 
 tags:
     - Lua
@@ -19,30 +19,20 @@ tags:
 4. 类型的值
 
 > Sometimes, you don't need to ask why, what you should do is just to do it.
-> 
 > Sometimes, you should know what you shouldn't do this, because this reminds you whenever you just don't do it.
 
 ## 程序段
 我们将Lua语言执行的每一段代码称为程序段，即一组命令或表达式组成的序列。
 ## 一些词法规范
 Lua的标识符可以由任意字母、数字和下划线组成，但是不能以数字开头。
-
-
 注释相关
 --[[
 ]]
-
 
 这个是多行注释
 可以使用这样的小技巧
 --[[
 --]]
-
-```css
-@supports(-webkit-scroll-snap-type: mandatory) {
-    /* we use it */
-}
-```
 
 这样注释
 ---[[

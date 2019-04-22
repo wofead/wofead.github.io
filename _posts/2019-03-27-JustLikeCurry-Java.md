@@ -32,8 +32,10 @@ Object包含 getClass()函数 返回对象执行时Class实例
 toString()方法 讲对象返回为字符串行形式
 equals() “==”比较引用值 即内存地址  equals()方法比较内容是否相同
 但是在自定义类中 equals默认比较引用地址 除非重写equals方法让它们比较内容
+
 ## instanceod 的使用
 判断一个对象是不是有某个类实例化的 特别适用于声明使用父类 实例使用子类
+
 ## final
 即const变量 声明
 **被定义为final的对象引用只能指向唯一一个对象，不可以将它再指向其他对象，但是对象本身的值是可以改变 这个值在对象初始化的赋值 但是使用static 和final一起修饰 这个值在类生成的时候就会初始化 永远不会改变**
@@ -52,21 +54,23 @@ final的类不能被基层，并且不允许其他人对这个类进行任何改
 使用this来访问内部成员和外部成员 内部 ”this.“  外部OutClass.this.  来访问
 ## 异常的捕捉
 
+```java
 try-catch-finally
 		
 		
-		try{
-			//程序代码块
-		}
-		catch(Exceptiontype1 e){
-			//对Exceptiontype1的异常处理
-		}
-		catch(Exceptiontype2 e){
-			//对Exceptiontype2的异常处理
-		}
-		finally{
-			//程序块
-		}
+try{
+	//程序代码块
+}
+catch(Exceptiontype1 e){
+	//对Exceptiontype1的异常处理
+}
+catch(Exceptiontype2 e){
+	//对Exceptiontype2的异常处理
+}
+finally{
+	//程序块
+}
+```
 
 无论try中的程序代码块如何退出，都将执行finally
 
@@ -76,8 +80,10 @@ try-catch-finally
 在方法后添加 throws 然后当不符合规定的手通过throw来抛出异常
 
 在使用try-catch可以使用自定义异常和已经封装好的异常。
+
 ## Swing
 Object -> Component - > Container -> JComponent
+
 ## 集合类
 object  -> Map   Map->HashMap Map->TreeMap
 Object-> Collection -> Set  HashSet  TreeSet
@@ -190,6 +196,7 @@ data->bufferWriter->outputStreamWriter->outputstream->文件
 
 ### 数据输入输出流
 在文件输入输出流之后可以添加数据输入输出流  然后写入文件和读取文件
+
 ### zip输入输出流(自己有时间要再次实现 imp)
 ZipOutinputStream
 putNextEntry(new Entry(base)) //创建进入节点
@@ -228,7 +235,9 @@ getFields和个人Methods 获得权限为public的，包含父类的
 getDeclared 获得只是在本类中的所有
 
 ### 反射的获取和执行
+
 #### 1. 访问构造方法
+
 首先获取对象的类 ,然后获取所有声明的构造方法
 选择一个构造方法进行实现
 其中如果方法为private 需要设置accessible为true 才能调用
@@ -398,13 +407,16 @@ public @interface AnnotationElementDemo {
     long[] value();
 }
 ```
+
 **编译器对默认值的限制**
 1. 元素不能有不确定的值，要么具有默认值，要么在使用注解时提供元素的值
 2. 对于非基本类型的元素，无论是在源代码中声明，还是在注解接口中定义默认值，都不能以null作为值：只能定义一些特殊的值，例如空字符串或负数，表示某个元素不存在
 
 **注解不支持继承** 不能使用关键字extends来继承某个@interface，但注解在编译后，编译器会自动继承java.lang.annotation.Annotation接口
+
 #### 快捷方式
 所谓的快捷方式就是注解中定义了名为value的元素，并且在使用该注解时，如果该元素是唯一需要赋值的一个元素，那么此时无需使用key=value的语法，而只需在括号内给出value元素所需的值即可。这可以应用于任何合法类型的元素，记住，这限制了元素名必须为value，简单案例如下
+
 ```java
 package com.zejian.annotationdemo;
 
@@ -434,7 +446,9 @@ public class QuicklyWay {
 
 }
 ```
+
 **Java8新增@Repeatable原注解**
+
 ```java
 //使用Java8新增@Repeatable原注解  下面这两种方式都可以 第一种为新特性
 @Target({ElementType.TYPE,ElementType.FIELD,ElementType.METHOD})
@@ -456,6 +470,7 @@ public @interface FilterPath {
 @FilterPath("/web/delete")
 class AA{ }
 ```
+
 ## 枚举
 枚举和类没有什么区别 只不过不可以继承了而已，因为他已经继承了枚举基类，但是他还是可以实现接口
 枚举常用的函数：
@@ -484,9 +499,11 @@ OverClass<Boolean> overClass = new OverClass<Boolean>();
 overClass.setValue(true);
 System.out.println(overClass.getValue);
 ```
+
 **在定义泛型类的时候，一般类型名称使用T来表示，而容器的元素使用E来表示**
 
 1. 定义泛型类时声明多个类型
+2. 
 ```java
 MutiOverClass<T1,T2>
 MutiOverClass:泛型名称
@@ -495,6 +512,7 @@ MutiOverClass<Boolean, Float> muti = new MutiOverClass<Boolean, Float>();
 ```
 
 2. 定义泛型类时生声明数组类型
+3. 
 ```java
 public class ArrayClass<T>{
 	T[] value;
@@ -513,6 +531,7 @@ overClass.setValue(booleans);
 System.out.println(overClass.getValue);
 
 ```
+
 2. 集合类声明容器的元素
 
 * ArrayList  ArrayList<E>
@@ -542,6 +561,7 @@ a = new A<LinkedList>();
 
 3. 继承泛型类与实现泛型接口
 subclass 继承ExA时保留父类的泛型类型
+
 ```java
 public class ExA<T1>{}
 class subClass<T1,T2,T3> extends Exa<T1>{}
@@ -618,6 +638,7 @@ public void test(){
 
 ----------
 线程的中断
+
 ```java
 public class Interrupted implements Runnable{
 	private boolean isContinue = true;
@@ -632,6 +653,7 @@ public class Interrupted implements Runnable{
 	}
 }
 ```
+
 当线程进入了wait或者sleep状态  可以使用interrupt方法来打断
 记得将sleep或者wait方法放到try-catch中，因为打断线程会抛出异常
 
@@ -641,6 +663,7 @@ public class Interrupted implements Runnable{
 ----------
 线程的优先级
 可以通过使用setPriority() 方法来给线程设置优先级，10~1  10最大1最小
+
 ```java
 // name 、优先级 、 线程对象
 setPriority("threadA",5,threadA)
@@ -655,10 +678,12 @@ setPriority("threadB",4,threadB)
 
 同步块、临界区
 使用
+
 ```java
 synchronized(Object){
 }
 ```
+
 当有线程处于临界区的时候其它线程需要等待锁被释放才能进去
 
 还可以使用同步方法
