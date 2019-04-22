@@ -61,7 +61,6 @@ kramdown:
 
 
 # Disqus settings
-highlighter: rouge
 #disqus_username: 
 
 # Gitalk
@@ -118,5 +117,5 @@ friends: [
     # },{
     #    title: "乱序",
     #   href: "http://mida.re/"
-    #}
+    }
 ]
