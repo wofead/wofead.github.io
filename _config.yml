@@ -61,6 +61,7 @@ kramdown:
 
 
 # Disqus settings
+highlighter: rouge
 #disqus_username: 
 
 # Gitalk
