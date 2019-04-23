@@ -70,26 +70,86 @@ end
 
 ## 排列的方式
 ```lua
-book={0,0,0,0,0,0,0,0}
-function addQueen(a,n)
-    if n>N then
-        for i=2,N do
-            if checkAttack(a,i,a[i])==false then
-                return
-            end
-        end
-        printTable(a)
+---@param t table|number
+local function deepCopy(t)
+    local result = {}
+    if type(t) == "number" then
+        table.insert(t, 1, t)
     else
-        for c=1,N do
-            if book[c]==0 then
-                a[n]=c
-                book[c]=1
-                addQueen(a,n+1)
-                book[c]=0
-            end
+        for i, v in ipairs(t) do
+            result[i] = t[i]
         end
     end
+    return result
 end
+
+---@param table table
+---@param n number
+---return table
+local function insertNumber(t, n)
+    local result = {}
+    for i = 1, #t + 1 do
+        result[i] = deepCopy(t)
+        table.insert(result[i], i, n)
+    end
+    return result
+end
+
+---@param t1 table
+---@param t2 table
+---@return table
+local function mergeTable(t1, t2)
+    local length = #t1
+    for i = 1, #t2 do
+        table.insert(t1, length + i, t2[i])
+    end
+end
+
+---@param table table
+---@param n number
+---@return table
+local function arrangement(t, n)
+    local temp = {}
+    for i = 1, #t do
+        local tt = insertNumber(t[i], n)
+        mergeTable(temp, tt)
+    end
+    return temp
+end
+
+local function getArrangement()
+    local table = { { 1, 2 }, { 2, 1 } }
+    for i = 3, N do
+        table = arrangement(table, i)
+    end
+    return table
+end
+
+local tr = getArrangement()
+for i, v in ipairs(tr) do
+    local flag = true
+    for j, k in ipairs(v) do
+        if not checkAttack(v, j, k) then
+            flag = false
+            break
+        end
+    end
+    if flag then
+        printTable(v)
+    end
+end
+
+print("Total number:", #tr)
+print("Total answer2:" .. totalResult)
+print("Method2 time:", os.clock() - t1)
+
 ```
 
+## 对比
+
+![](https://i.imgur.com/GTTE5EV.png)
+
+![](https://i.imgur.com/slauuLs.png)
+
+方法2：排列花费1.604秒，检测花费将近1.1秒，这说明排列还是浪费了很多时间在检测和排列上面的。
 
