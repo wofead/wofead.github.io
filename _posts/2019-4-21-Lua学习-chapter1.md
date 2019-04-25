@@ -20,6 +20,7 @@ tags:
 
 > Sometimes, you don't need to ask why, what you should do is just to do it.
 > Sometimes, you should know what you shouldn't do this, because this reminds you whenever you just don't do it.
+>[https://joedf.ahkscript.org/LuaBuilds/](https://joedf.ahkscript.org/LuaBuilds/) 已经编译好的lua，适用于windows
 
 ## 程序段
 我们将Lua语言执行的每一段代码称为程序段，即一组命令或表达式组成的序列。

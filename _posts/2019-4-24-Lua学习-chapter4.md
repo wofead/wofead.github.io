@@ -1,14 +1,14 @@
 ---
 layout:     post
-title:      Lua 学习 chapter3
-subtitle:   chapter3
-date:       2019-4-23
+title:      Lua 学习 chapter4
+subtitle:   chapter4
+date:       2019-4-24
 author:     Jow
 header-img: img/lua-study.jpg
 catalog: 	 true 
 tags:
     - Lua
-    - lua program dedign
+    - lua program dedigns
 
 ---
 
