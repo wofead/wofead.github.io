@@ -8,7 +8,7 @@ header-img: img/lua-study.jpg
 catalog: 	 true 
 tags:
     - Lua
-    - lua program dedigns
+    - lua program dedign
 
 ---
 
