@@ -13,96 +13,69 @@ tags:
 ---
 
 ### 目录
-1. 闭包
-2. 控制结构
-3. break,return和goto
+1. 函数是第一类值
+2. 高阶函数
 
 
 > Just be handsome.
 
-## 局部变量和代码块
-Lua语言中的变量默认情况下是全局变量，所有的局部变量在使用前必须声明。一个代码块是一个控制结构的主体，或是函数的主体，或是一个代码段(即变量被声明时所在的文件或字符串）。
-在乱终可以显示的声明代码块，使用do  end
+## 函数是第一类值
+语法糖：
 ```lua
-do
-	--代码块
-end
+function foo(x) return 2*x end
+fucction (x) body end --就是韩式的构造器
+function derivative (f, delta)
+delta = delta or 1e-4
+return function(x)
+		(f(x + delta) - f(x)) / delta)
+	end
 ```
-在lua中，尽可能的使用局部变量时是一种良好的变成风格。局部变量便于回收，不会造成命名冲突和混乱。
-在lua中，又一个检查全局变量的模块strict.lua,如果视图在一个函数中对不存在的全局变量赋值或者使用，将会抛出异常。
+例如table.sort函数的第二个函数是以函数作为参数的，这种函数我们称之为高阶函数。
 
-## 控制结构
-1. if  end终结
-2. while end终结
-3. repeat  使用untile终结
-4. for end终结
 
-### if
+在lua中所有的函数都是匿名的。当讨论函数名的时候，实际上是保存该函数的变量。
+如上面的derivative函数，求导函数。
+
+局部函数对于包而言尤其有用：由于lua语言将每个程序段作为一个函数处理，所以在一段程序中声明的函数就是局部函数，这些函数只在该程序段可见。词法定界保证了程序段中的其他函数可以使用这些局部函数。
+
+在使用局部函数的时候，注意递归，当在局部函数中递归自己的时候会导致未定义问题，所以应该先声明，再定义。
+
+## 高阶函数
+
 ```lua
-local a = 100
-if a > 0 then
-    print(a)
-elseif a > 5 then
-    print(a)
-else
-    print(a)
+local function disk(cx, cy, r)
+    return function(x, y)
+        return (x - cx) ^ 2 + (y - cy) ^ 2 <= r ^ 2
+    end
+end
+
+local function rect(left, right, top, bottom)
+    return function(x, y)
+        return x <= right and x >= left and y <= top and y >= bottom
+    end
+end
+
+local function union(r1, r2)
+    return function(x, y)
+        return r1(x, y) or r2(x, y)
+    end
+end
+
+local function intersection(r1, r2)
+    return function(x, y)
+        return r1(x, y) and r2(x, y)
+    end
+end
+
+local function difference(r1, r2)
+    return function(x, y)
+        return r1(x, y) and not r2(x, y)
+    end
+end
+
+local function trance(r, dx, dy)
+    return function(x, y)
+        return r(x - dx, y - dy)
+    end
 end
 ```
- 
-### while
-```lua  
---如果不对a进行+1的操作很容易陷入死循环
-while a > 10 do
-    print(a)
-    a = a + 1
-end 
-```
-
-### repeat
-和其它语言do  while的用法很像
-```lua
-repeat
-    print(a)
-    a = a - 1
-until a > 20
-```
-
-### for
-```lua
-for var = exp1,exp2,exp3 do
-	someting
-end
---- 从exp1变成exp2 exp3是步长 默认是1，所以这个参数是可选参数
-for i = 1, 10 do
-    print(i)
-end
-
-for i, v in ipairs(b) do
-    print(v)
-end
-
-for i, v in pairs(b) do
-    print(v)
-end
-```
-
-## break,return和goto
-break和return语句用于从当前的循环结构中跳出，goto语句则能够跳转到函数中的任何位置。
-break只能在循环中使用，跳出当前层次的循环。
-
-return用来返回函数的执行结果或者结束函数的执行，在每个函数的结尾都存在一个隐形的return。
-
-goto 的使用，跳转到标签的位置。
-标签的定义：
-```lua
-goto isMe
-while a < 200 do
-    print(a)
-    a = a + 1
-end
-::isMe::
-```
-goto的使用在lua中存在限制条件，标签遵循可见性原则，因此不能直接跳转到一个代码块中的标签（因为代码快中的标签对外不可见）。
-其次goto不能跳转到函数外，最后goto不能跳转到局部变量的作用域。
-
-
