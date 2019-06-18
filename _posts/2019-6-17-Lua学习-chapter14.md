@@ -13,15 +13,21 @@ tags:
 ---
 
 ### 目录
-1. 位和字节
-2. 无符号的输出
-3. 打包和解包二进制数据
+1. 数据结构
 
 
 > What is the cost of lies? It's not that we'll mistake them for the truth. The real danger is that if we hear enough lies, then we no longer recognize the truth at all. What can we do then? What else is left but to abandon even the hope of truth and content ourselves instaed with stories? In these stories, it doesn't matter who the heroes are. All we want to know is: who is to blame? No friends. Or, at least, not important ones.
 
-## 位和字节
-在lua中位运算和其它语言基本一致，包含按位与、按位或、按位异或、按位取反、逻辑右移以及逻辑左移。
+## 数据结构
+在lua中我们可以通过使用表来实现各种数据结构。
+1. 数组
+2. 矩阵和多位数组 --通过insert和嵌套表
+3. 链表 --使用表来作为节点
+4. 队列和双端队列
+5. 反向表
+6. 集合和包  --insert 和 remove
+7. 字符串缓冲区 --在这里注意大量连接字符串的时候使用table.cancat(),把字符串放到表中进行链接。第二个参数为在链接的时候插入什么。
+8. 图像
 
 ```lua
 print(string.format("%x", 0xff & 0xabcd))
@@ -42,34 +48,6 @@ ff000
 --]]
 
 ```
-
-## 无符号的输出
-整形表示中使用一个比特来存储符号位，所以用来表示最大的整数就是2^63 - 1,而不是64次方。
-
-## 打包和解包二进制数据
-函数string.pack会把值打包为二进制字符串，而unpack则从中提取这些值。 
-在下面的例子里面，打包成什么格式的字符串取决于什么样的编码方式，不同的数据编码方式也不同。
-```lua
-s = string.pack("iii", 3, 6, 23)
-string.unpack("iii",s)
-```
-整形：
-1. b(char)
-2. h(short)
-3. i(int)
-4. l(long)
-5. j(lua语言中整数的大小)
-6. in(n代表大小，7会产生7个字节的整形数）
-
-字符串：
-1. z(\0结尾的字符串)
-2. cn(定长字符串使用选项cn,n表示被打包字符串的字节数)
-3. sn(显式长度的字符串在存储的时候会在字符串前加上该字符安的长度，n是用来保存字符串长度的无符号整形数字大小）
-
-浮点数：
-1. f(单精度浮点数)
-2. d(双精度浮点数)
-3. n(用于lua语言浮点数)
 
 
 
