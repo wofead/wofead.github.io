@@ -345,7 +345,10 @@ local preNode = function(node)
 end
 ```
 
-删除： pro
+删除： 在给新上来的节点赋值的时候，注意原来节点父节点的左子树还是右子树，还有就是删除和后继节点相关，操作的是后继节点，
+如果删除的是root节点，还要注意。
+所以这里在交换的时候使用一个transplant函数。
+
 ```lua
 --查找node的后继y，后继y没有左子树
 --如果y是node的右子树，则直接拼接
@@ -354,21 +357,65 @@ local treeDelete = function(node)
     if node.left and node.right then
         local next = nextNode(node)
         if next.parent == node then
-            next.right = node.right
-            next.parent = node.parent
-            node.parent.right = next
+            next.left = node.left
         else
             next.parent.left = next.right
-            next.right = node.right
-            next.parent = node.parent
-            node.parent.right = next
+            next.parent.parent = next
+        end
+        next.parent = node.parent
+        if node.parent then
+            if node.parent.right == node then
+                node.parent.right = next
+            else
+                node.parent.left = next
+            end
+        else
+            tree.root = next
         end
     else
-        node.parent.left = node.left
-        node.parent.right = node.right
+        if node.parent then
+            node.parent.left = node.left
+            node.parent.right = node.right
+        else
+            if node.left then
+                tree.root = node.left
+            else
+                tree.root = node.right
+            end
+        end
+    end
+end
+treeDelete(search(6))
+midPrint(tree.root)
+--使用transplant函数
+local function transplant(tree, u, v)
+    if u.parent == nil then
+        tree.root = v
+    elseif u.parent.right == u then
+        u.parent.right = v
+    else
+        u.parent.left = v
+    end
+    if v then
+        v.parent = u.parent
     end
 end
 
-treeDelete(search(6))
-midPrint(tree.root)
+treeDelete = function(tree, node)
+    if node.right == nil then
+        transplant(tree, node, node.left)
+    elseif node.left == nil then
+        transplant(tree, node, node.right)
+    else
+        local next = nextNode(node)
+        if next.parent ~= node then
+            transplant(tree, next, next.right)
+            next.right = node.right
+            next.right.parent = next
+        end
+        transplant(tree, node, next)
+        next.left = node.left
+        next.left.parent = next
+    end
+end
 ```
