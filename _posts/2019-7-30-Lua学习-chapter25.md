@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:      Lua 学习 chapter23
-subtitle:   chapter23
+title:      Lua 学习 chapter25
+subtitle:   chapter25
 date:       2019-7-30
 author:     Jow
 header-img: img/lua-study.jpg
@@ -13,83 +13,43 @@ tags:
 ---
 
 ### 目录
-1. 弱引用表
-2. 记忆函数
-3. 环境和模块
-4. 垃圾收集器
+1. 自省机制
+2. 访问变量
+3. 钩子
+4. 沙盒
 
 > 只有疯狂过，你才知道自己究竟能不能成功。
 
-## 弱引用表
-弱引用表是用来告知lua语言一个引用不应该阻止对一个对象回收的机制。所谓弱引用是一种不在垃圾收集器考虑范围内的对象引用。如果一个对象都是所有的引用都是弱引用，那么垃圾回收器就可以回收这个对象，并把所有引用都删除了。
-表是由键值对组成，一般情况下垃圾收集器不会回收一个在可访问表中作为值或者键的对象，键和值都是强引用。
-在一个弱引用表中，键和值都可以是弱引用。
+## 自省机制
+通过debug.getinfo(foo)，函数就会返回一个包含该函数有关的一些数据的表。
 
-一个表是否为弱引用表是由原表中的__mode字段决定的，这个字段存在时，其值应该为一个字符串:这个字符串的值为"k",那么表的键为弱引用，如果是"v"，值为弱应用，"kv"，表示这个表的键和值都是弱引用。
-```lua
-a = {}
-mt = {__mode = "k"}
-setmetatable(a, mt)
-key = {}
-a[key] = 1
-key = {}
-a[key] = 2
-collectgarbage()--第一个key就被回收了
-```
+## 访问变量
+通过debug.getlocal来检查任意活跃函数的局部变量。还可以通过函数getupvalue来访问一个呗lua函数所使用的的非局部变量。
+我们还可以通过traceback函数来打印堆栈信息。
 
-## 记忆函数
-lua语言中处理全局变量的方式：
-* 编译器在编译所有代码之前，在外层创建局部变量_ENV
-* 编译器将所有自由名称变换为_ENV.var;
-* 函数load(or loadfile)使用全局环境初始化代码段的第一个上值，即lua语言内部维护的一个普通表。
+## 钩子
+调试库中的钩子机制允许用户注册一个钩子函数，这个钩子函数会在程序运行中某个特定事件发生时被调用：
+* 每当调用一个函数时产生的call事件
+* 每当函数返回时产生的return事件
+* 每当开始执行一行新代码产生的line事件
+* 执行完指定数量的指令后产生的count事件
 
-_ENV只是一个普通的变量，将其赋值为nil会使得后续的代码不能直接访问全局变量。
-我们还可以使用_ENV来绕过局部声明的变量，直接访问全局变量。
-```lua
-local print, sin = print, math.sin
-_ENV = nil
-print(13)
-print(sin(13))
-print(cos(13)) --error 访问不到全局
-
-a = 13
-local a = 12
-print(a)
-print(_ENV.a) --访问全局的a，当然也可以使用_G来访问全局的a
-
-_ENV = {}
-a = 1
-print(a) --print is a nil
-
-a = 15
-_ENV = {g = _G}
-a = 1
-g.print(_ENV.a, g.a} -- 1 , 15
-```
-通常_G和_ENV指向的是同一个表。但是，尽管如此，他们是很不一样的实体。_ENV是一个局部变量，所以对“全局变量”的访问实际上访问的都是_ENV。_G则是一个在任何情况下都没有任何特殊状态的全局变量。_ENV永远指向的是当前的环境；而假设在可见且无人改变过其值的前提下，_G通常指向的是全局变量。
-
-_ENV的主要作用就是改变当前的环境。
-
-## 环境和模块
-为了防止污染全局环境：
+钩子函数的注册：通过debug.sethook：第一个参数是钩子函数，第二个参数是描述要监控事件掩码字符串，第三个参数是一个用于描述以何种频度获取count事件的可选参数。
+要监控call、return、line事件，把这几个事件的首字母放入掩码字符串。要监控count事件，则需要在第三个参数中指定一个计数器。如果要关闭钩子，不带参数的调用sethook函数即可。
 
 ```lua
-local M = {}
-_ENV = {}
-
-function hello()
-	print("hello")
+function hello(event)
+    print("hello", event)
 end
-
-function sayHello()
-	hello() --M.hello
-end
-
-local M = {}
-local sqrt = math.sqrt
-local in = io
-_ENV = nil
---这样就不能进行外部访问了
+debug.sethook(hello,"c")
+hello()
+--[[输出
+hello	call
+hello	call
+hello	call
+hellohello	call
+	nil
+]]--
 
 
 ```

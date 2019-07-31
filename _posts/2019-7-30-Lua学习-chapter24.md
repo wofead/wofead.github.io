@@ -13,106 +13,85 @@ tags:
 ---
 
 ### 目录
-1. 弱引用表
-2. 记忆函数
-3. 环境和模块
-4. 垃圾收集器
+1. 协程
 
-> 只有疯狂过，你才知道自己究竟能不能成功。
+> 人人真真的生活过，学习过，改变过，努力过，才能创造出一个满意的自己。
 
-## 弱引用表
-弱引用表是用来告知lua语言一个引用不应该阻止对一个对象回收的机制。所谓弱引用是一种不在垃圾收集器考虑范围内的对象引用。如果一个对象都是所有的引用都是弱引用，那么垃圾回收器就可以回收这个对象，并把所有引用都删除了。
-表是由键值对组成，一般情况下垃圾收集器不会回收一个在可访问表中作为值或者键的对象，键和值都是强引用。
-在一个弱引用表中，键和值都可以是弱引用。
+## 协程
+> 协程是一系列的可执行语句，拥有自己的栈、局部变量和指令指针，同时协程又与其他协程共享了全局变量和其他几乎一切资源。线程和协程的主要区别在于，一个线程程序可以并行运行多个线程，而协程却需要彼此协作的运行，即任意指定时刻只能有一个协程运行。
 
-一个表是否为弱引用表是由原表中的__mode字段决定的，这个字段存在时，其值应该为一个字符串:这个字符串的值为"k",那么表的键为弱引用，如果是"v"，值为弱应用，"kv"，表示这个表的键和值都是弱引用。
+协程相关的函数都在coroutine表中，其中create为创建协程函数，参数为协程要执行的代码函数。它会返回一个thread类型的协程。
+一个协程拥有四种状态：挂起，运行，正常和死亡。
+当一个协程被创建的时候，它处于挂起状态。函数resume用于启动或再次启动一个协程的运行，并将其状态由挂起改为运行。协程函数执行完毕之后进入死亡状态。当使用协程A唤醒协程B的时候，协程A即不是挂起状态（因为不能唤醒协程A），也不是运行状态（因为B正在运行）。所以A此时的状态就被称为正常状态。
+
+lua语言一个非常有用的机制是通过一对resume-yield来交换数据，第一个resume函数（没有对应等待它的yield）会把所有额外参数传递给协程的主函数。
+在函数resume的返回之中，第一个返回值为true时表示没有错误，之后的返回值对应函数yield的参数。
+
+可以将唤醒协程的函数放在一个函数中，因为这种模式比较常见，所以lua语言专门提供了一个特殊的函数coroutine函数来完成这个功能。
+当执行wrap中的函数时候，就唤醒协程。
 ```lua
-a = {}
-mt = {__mode = "k"}
-setmetatable(a, mt)
-key = {}
-a[key] = 1
-key = {}
-a[key] = 2
-collectgarbage()--第一个key就被回收了
+co = coroutine.create(function(a, b, c)
+    return a + b + c
+end)
+
+print(coroutine.resume(co, 1, 2, 3)) --> true 6。执行状态和结果
+
+co = coroutine.create(function(a, b, c)
+    print(coroutine.yield(a + b, b + c)) --2 4 6,返回值是唤醒这个yield的参数值
+    return a + b + c
+end)
+
+print(coroutine.resume(co, 1, 2, 3)) -- true	3	5,返回yield的参数，是最开始传进来的参数
+print(coroutine.resume(co, 2, 4, 6)) -- true	6，返回结果，根据最开始传进来的参数
+print(coroutine.resume(co, 2, 4, 6)) --false	cannot resume dead coroutine
+
+function permutations(a)
+	return coroutine.wrap(function() permgen(a) end)
+end
 ```
-
-## 记忆函数
-lua语言中处理全局变量的方式：
-* 编译器在编译所有代码之前，在外层创建局部变量_ENV
-* 编译器将所有自由名称变换为_ENV.var;
-* 函数load(or loadfile)使用全局环境初始化代码段的第一个上值，即lua语言内部维护的一个普通表。
-
-_ENV只是一个普通的变量，将其赋值为nil会使得后续的代码不能直接访问全局变量。
-我们还可以使用_ENV来绕过局部声明的变量，直接访问全局变量。
+生产者与消费者的例子：
 ```lua
-local print, sin = print, math.sin
-_ENV = nil
-print(13)
-print(sin(13))
-print(cos(13)) --error 访问不到全局
-
-a = 13
-local a = 12
-print(a)
-print(_ENV.a) --访问全局的a，当然也可以使用_G来访问全局的a
-
-_ENV = {}
-a = 1
-print(a) --print is a nil
-
-a = 15
-_ENV = {g = _G}
-a = 1
-g.print(_ENV.a, g.a} -- 1 , 15
-```
-通常_G和_ENV指向的是同一个表。但是，尽管如此，他们是很不一样的实体。_ENV是一个局部变量，所以对“全局变量”的访问实际上访问的都是_ENV。_G则是一个在任何情况下都没有任何特殊状态的全局变量。_ENV永远指向的是当前的环境；而假设在可见且无人改变过其值的前提下，_G通常指向的是全局变量。
-
-_ENV的主要作用就是改变当前的环境。
-
-## 环境和模块
-为了防止污染全局环境：
-
-```lua
-local M = {}
-_ENV = {}
-
-function hello()
-	print("hello")
+function receive(prod)
+    local status, value = coroutine.resume(prod)
+    return value
 end
 
-function sayHello()
-	hello() --M.hello
+function send(x)
+    coroutine.yield(x)
 end
 
-local M = {}
-local sqrt = math.sqrt
-local in = io
-_ENV = nil
---这样就不能进行外部访问了
+function producer()
+    return coroutine.create(function()
+        while (true) do
+            local x = io.read()
+            send(x)
+        end
+    end)
+end
 
+function filter(prod)
+    return coroutine.create(function()
+        for line = 1, math.huge do
+            local x = receive(prod)
+            x = string.format("%5d %s", line, x)
+            send(x)
+        end
+    end)
+end
 
+function consumer(prod)
+    while true do
+        local x = receive(prod)
+        io.write(x, "\n")
+        local exit = string.match(x, "%l+")
+        if tostring(exit) == "q" then
+            break
+        end
+    end
+end
+
+consumer(filter(producer()))
 ```
-
-load函数通常被加载代码段的上值_ENV初始化为全局变量。
-
-在lua中，**一个具有弱引用的键和一个强引用的值的表是一个瞬表。**
-
-```lua
-o = { x = "hi"}
-setmetatable(o, {__gc = function(o) print(o.x) end})
-o = nil
-collectgarbage()
-```
-元函数__gc表示析构函数，在垃圾回收这个对象的时候会自动调用函数。
-
-## 垃圾收集器
-每一个垃圾回收周期由四个阶段组成：标记、清理、清除和析构。
-* 标记阶段：把可达对象标记为活跃；
-* 清理阶段处：理析构器和弱引用表，这些没有被标记为活跃状态的对象会被标记为活跃（复苏），并放在一个单独的列表中，这个列表将在析构阶段使用。然后，lua遍历弱引用表并从中移除键或者值未被标记的元素。
-* 清除阶段：遍历所有对象，对象未被标记为活跃就回收，否则标记为清理标记，然后准备下一个清理周期。
-* 析构阶段：调用清理阶段被分离出来的对象的析构器。
-
 
 
 
