@@ -15,6 +15,9 @@ tags:
 1. 与多线程相关的头文件
 2. c++ thread构造函数
 3. 竞争条件与互斥锁
+4. 死锁
+5. unique_lock
+6. 条件变量
 
 
 > Study hard, work hard.
@@ -427,3 +430,347 @@ int main()
 但是这个时候还是得小心了！用互斥元保护数据并不只是像上面那样保护每个函数，就能够完全的保证线程安全，如果将资源的指针或者引用不小心传递出来了，所有的保护都白费了！要记住一下两点：
 1. 不要提供函数让用户获取资源。
 2. 不要资源传递给用户的函数。
+
+## 死锁
+如果你讲某个mutex上锁了，却一直不释放，另一个线程访问该锁保护资源的时候就会发生死锁，这种情况可以使用local_guard保证析构的时候能够释放锁，但是当一个操作需要使用两个互斥元的时候，仅仅使用lock_guard并不能保证不会发生死锁，如下面的例子：
+
+```c++
+#include <iostream>
+#include <thread>
+#include <string>
+#include <mutex>
+#include <fstream>
+using namespace std;
+
+class LogFile {
+    std::mutex _mu;
+    std::mutex _mu2;
+    ofstream f;
+public:
+    LogFile() {
+        f.open("log.txt");
+    }
+    ~LogFile() {
+        f.close();
+    }
+    void shared_print(string msg, int id) {
+        std::lock_guard<std::mutex> guard(_mu);
+        std::lock_guard<std::mutex> guard2(_mu2);
+        f << msg << id << endl;
+        cout << msg << id << endl;
+    }
+    void shared_print2(string msg, int id) {
+        std::lock_guard<std::mutex> guard(_mu2);
+        std::lock_guard<std::mutex> guard2(_mu);
+        f << msg << id << endl;
+        cout << msg << id << endl;
+    }
+};
+
+void function_1(LogFile& log) {
+    for(int i=0; i>-100; i--)
+        log.shared_print2(string("From t1: "), i);
+}
+
+int main()
+{
+    LogFile log;
+    std::thread t1(function_1, std::ref(log));
+
+    for(int i=0; i<100; i++)
+        log.shared_print(string("From main: "), i);
+
+    t1.join();
+    return 0;
+}
+```
+运行之后你就会发现程序卡住，这就是发生了死锁。
+```c++
+Thread A              Thread B
+_mu.lock()          _mu2.lock()
+   //死锁               //死锁
+_mu2.lock()         _mu.lock()
+
+if(&_mu < &_mu2){
+    _mu.lock();
+    _mu2.unlock();
+}
+else {
+    _mu2.lock();
+    _mu.lock();
+}
+
+std::lock(_mu, _mu2);
+std::lock_guard<std::mutex> guard(_mu2, std::adopt_lock);
+std::lock_guard<std::mutex> guard2(_mu, std::adopt_lock);
+```
+
+解决方法：
+1. 可以比较mutex的地址，每次都先锁地址小的。
+2. 使用层次锁，将互斥锁包装一下，给锁定义一个层次的属性，每次按层次由高到低的顺序上锁。
+
+这两种办法其实都是严格规定上锁顺序，只不过实现方式不同。
+
+
+c++标准库中提供了std::lock()函数，能够保证将多个互斥锁同时上锁。同时，lock_guard也需要做修改，因为互斥锁已经被上锁了，那么lock_guard构造的时候不应该上锁，只是需要在析构的时候释放锁就行了，使用std::adopt_lock表示无需上锁。
+
+关于锁，总结一下：
+1. 建议尽量同时只对一个互斥上锁。
+2. 不要在互斥锁保护的区域使用用户自定义的代码，因为用户的代码可能操作了其他的互斥锁。
+3. 如果相同时对多个互斥锁上锁，要使用std::lock().
+4. 给锁定义顺序(使用层次锁，或者比较地址等），每次以同样的顺序进行上锁。
+
+## unique_lock
+互斥锁保证了线程间的同步，但是却将并行操作变成了串行操作，这对性能有很大的影响，所以我们要尽可能的减小锁定的区域，也就是使用细粒度锁。
+
+这一点lock_guard做的不好，不够灵活，lock_guard只能保证在析构的时候执行解锁操作，lock_guard本身并没有提供加锁和解锁的接口，但是有些时候会有这种需求。看下面的例子。
+
+```c++
+class LogFile {
+    std::mutex _mu;
+    ofstream f;
+public:
+    LogFile() {
+        f.open("log.txt");
+    }
+    ~LogFile() {
+        f.close();
+    }
+    void shared_print(string msg, int id) {
+        {
+            std::lock_guard<std::mutex> guard(_mu);
+            //do something 1
+        }
+        //do something 2
+        {
+            std::lock_guard<std::mutex> guard(_mu);
+            // do something 3
+            f << msg << id << endl;
+            cout << msg << id << endl;
+        }
+    }
+
+};
+```
+上面的代码中，一个函数内部有两段代码需要进行保护，这个时候使用lock_guard就需要创建两个局部对象来管理同一个互斥锁（其实也可以只创建一个，但是锁的力度太大，效率不行），修改方法是使用unique_lock。它提供了lock()和unlock()接口，能记录现在处于上锁还是没上锁状态，在析构的时候，会根据当前状态来决定是否要进行解锁（lock_guard就一定会解锁）。上面的代码修改如下：
+
+```c++
+class LogFile {
+    std::mutex _mu;
+    ofstream f;
+public:
+    LogFile() {
+        f.open("log.txt");
+    }
+    ~LogFile() {
+        f.close();
+    }
+    void shared_print(string msg, int id) {
+
+        std::unique_lock<std::mutex> guard(_mu);
+        //do something 1
+        guard.unlock(); //临时解锁
+
+        //do something 2
+
+        guard.lock(); //继续上锁
+        // do something 3
+        f << msg << id << endl;
+        cout << msg << id << endl;
+        // 结束时析构guard会临时解锁
+        // 这句话可要可不要，不写，析构的时候也会自动执行
+        // guard.ulock();
+    }
+
+};
+```
+
+上面的代码可以看到，在无需加锁的操作时，可以先临时释放锁，然后需要继续保护的时候，可以继续上锁，这样就无需重复的实例化lock_guard对象，还能减少锁的区域。同样，可以使用std::defer_lock设置初始化的时候不进行默认的上锁操作：
+
+```c++
+void shared_print(string msg, int id) {
+    std::unique_lock<std::mutex> guard(_mu, std::defer_lock);
+    //do something 1
+
+    guard.lock();
+    // do something protected
+    guard.unlock(); //临时解锁
+
+    //do something 2
+
+    guard.lock(); //继续上锁
+    // do something 3
+    f << msg << id << endl;
+    cout << msg << id << endl;
+    // 结束时析构guard会临时解锁
+}
+```
+这样使用起来就比lock_guard更加灵活！然后这也是有代价的，因为它内部需要维护锁的状态，所以效率要比lock_guard低一点，在lock_guard能解决问题的时候，就是用lock_guard，反之，使用unique_lock。
+
+后面在学习条件变量的时候，还会有unique_lock的用武之地。
+
+另外，请注意，unique_lock和lock_guard都不能复制，lock_guard不能移动，但是unique_lock可以！
+```c++
+// unique_lock 可以移动，不能复制
+std::unique_lock<std::mutex> guard1(_mu);
+std::unique_lock<std::mutex> guard2 = guard1;  // error
+std::unique_lock<std::mutex> guard2 = std::move(guard1); // ok
+
+// lock_guard 不能移动，不能复制
+std::lock_guard<std::mutex> guard1(_mu);
+std::lock_guard<std::mutex> guard2 = guard1;  // error
+std::lock_guard<std::mutex> guard2 = std::move(guard1); // error
+```
+
+## 条件变量
+互斥锁std::mutex是一种常见的线程间同步的手段，但是有些情况下不太高效。
+
+假设想实现一个简单的消费者生产者模型，一个线程往队列里面放入数据，一个线程从队列中取数据，取数据前需要判断一下队列中确实有数据，由于这个队列是线程间共享的，所以，需要使用互斥锁进行保护，一个线程在往队列添加数据的时候，另一个线程不能取，反之亦然。用互斥锁实现如下：
+```c++
+#include <iostream>
+#include <deque>
+#include <thread>
+#include <mutex>
+
+std::deque<int> q;
+std::mutex mu;
+
+void function_1() {
+    int count = 10;
+    while (count > 0) {
+        std::unique_lock<std::mutex> locker(mu);
+        q.push_front(count);
+        locker.unlock();
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        count--;
+    }
+}
+
+void function_2() {
+    int data = 0;
+    while ( data != 1) {
+        std::unique_lock<std::mutex> locker(mu);
+        if (!q.empty()) {
+            data = q.back();
+            q.pop_back();
+            locker.unlock();
+            std::cout << "t2 got a value from t1: " << data << std::endl;
+        } else {
+            locker.unlock();
+        }
+    }
+}
+int main() {
+    std::thread t1(function_1);
+    std::thread t2(function_2);
+    t1.join();
+    t2.join();
+    return 0;
+}
+
+//输出结果
+//t2 got a value from t1: 10
+//t2 got a value from t1: 9
+//t2 got a value from t1: 8
+//t2 got a value from t1: 7
+//t2 got a value from t1: 6
+//t2 got a value from t1: 5
+//t2 got a value from t1: 4
+//t2 got a value from t1: 3
+//t2 got a value from t1: 2
+//t2 got a value from t1: 1
+
+void function_2() {
+    int data = 0;
+    while ( data != 1) {
+        std::unique_lock<std::mutex> locker(mu);
+        if (!q.empty()) {
+            data = q.back();
+            q.pop_back();
+            locker.unlock();
+            std::cout << "t2 got a value from t1: " << data << std::endl;
+        } else {
+            locker.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+    }
+}
+```
+
+可以看到，互斥锁其实可以完成这个任务，但是却存在着性能问题。
+
+首先，function_1函数是生产者，在生产过程中，std::this_thread::sleep_for(std::chrono::seconds(1));表示延时1s，所以这个生产的过程是很慢的；function_2函数是消费者，存在着一个while循环，只有在接收到表示结束的数据的时候，才会停止，每次循环内部，都是先加锁，判断队列不空，然后就取出一个数，最后解锁。所以说，在1s内，做了很多无用功！这样的话，CPU占用率会很高，可能达到100%（单核）.
+
+解决办法之一是给消费者也加一个小延时，如果一次判断后，发现队列是空的，就惩罚一下自己，延时500ms，这样可以减小CPU的占用率。
+
+然后困难之处在于，如何确定这个延时时间呢，假如生产者生产的很快，消费者却延时500ms，也不是很好，如果生产者生产的更慢，那么消费者延时500ms，还是不必要的占用了CPU。
+
+这就引出了条件变量（condition variable）,c++11中提供了#include <condition_variable>头文件，其中的std::condition_variable可以和std::mutex结合一起使用，其中有两个重要的接口，notify_one()和wait()，wait()可以让线程陷入休眠状态，在消费者生产者模型中，如果生产者发现队列中没有东西，就可以让自己休眠，但是不能一直不干活啊，notify_one()就是唤醒处于wait中的其中一个条件变量（可能当时有很多条件变量都处于wait状态）。那什么时刻使用notify_one()比较好呢，当然是在生产者往队列中放数据的时候了，队列中有数据，就可以赶紧叫醒等待中的线程起来干活了。
+
+使用条件变量修改后如下：
+```c++
+#include <iostream>
+#include <deque>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
+std::deque<int> q;
+std::mutex mu;
+std::condition_variable cond;
+
+void function_1() {
+    int count = 10;
+    while (count > 0) {
+        std::unique_lock<std::mutex> locker(mu);
+        q.push_front(count);
+        locker.unlock();
+        cond.notify_one();  // Notify one waiting thread, if there is one.
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        count--;
+    }
+}
+
+void function_2() {
+    int data = 0;
+    while ( data != 1) {
+        std::unique_lock<std::mutex> locker(mu);
+        while(q.empty())
+            cond.wait(locker); // Unlock mu and wait to be notified
+        data = q.back();
+        q.pop_back();
+        locker.unlock();
+        std::cout << "t2 got a value from t1: " << data << std::endl;
+    }
+}
+int main() {
+    std::thread t1(function_1);
+    std::thread t2(function_2);
+    t1.join();
+    t2.join();
+    return 0;
+}
+```
+
+上面的代码有三个注意事项：
+1. 在function_2中，在判断队列是否为空的时候，使用的是while(q.empty()),而不是if(q.empty())，这是因为wait()从阻塞到返回，不一定就是由于notify_one()函数造成的，还有可能由于系统的不确定原因唤醒（可能和条件变量的实现机制有关），这个的时机和频率都是不确定的，被称作伪唤醒，如果在错误的时候被唤醒了，执行后面的语句就会错误，所以需要再次判断队列是否为空，如果还是为空，就继续wait()阻塞。
+2. 在管理互斥锁的时候，使用的是std::unique_lock而不是std::lock_guard，而且事实上也不能使用std::lock_guard，这需要先解释下wait()函数所做的事情。可以看到，在wait()函数之前，使用互斥锁保护了，如果wait的时候什么都没做，岂不是一直持有互斥锁？那生产者也会一直卡住，不能够将数据放入队列中了。所以，wait()函数会先调用互斥锁的unlock()函数，然后再将自己睡眠，在被唤醒后，又会继续持有锁，保护后面的队列操作。而lock_guard没有lock和unlock接口，而unique_lock提供了。这就是必须使用unique_lock的原因。
+3. 使用细粒度锁，尽量减小锁的范围，在notify_one()的时候，不需要处于互斥锁的保护范围内，所以在唤醒条件变量之前可以将锁unlock()。
+
+还可以将cond.wait(locker);换一种写法，wait()的第二个参数可以传入一个函数表示检查条件，这里使用lambda函数最为简单，如果这个函数返回的是true，wait()函数不会阻塞会直接返回，如果这个函数返回的是false，wait()函数就会阻塞着等待唤醒，如果被伪唤醒，会继续判断函数返回值。
+
+```c++
+void function_2() {
+    int data = 0;
+    while ( data != 1) {
+        std::unique_lock<std::mutex> locker(mu);
+        cond.wait(locker, [](){ return !q.empty();} );  // Unlock mu and wait to be notified
+        data = q.back();
+        q.pop_back();
+        locker.unlock();
+        std::cout << "t2 got a value from t1: " << data << std::endl;
+    }
+}
+```
+
+除了notify_one()函数，c++还提供了notify_all()函数，可以同时唤醒所有处于wait状态的条件变量。
