@@ -899,3 +899,11 @@ int main() {
     return 0;
 }
 ```
+
+std::async会首先创建线程执行is_prime(700020007)， 任务创建之后，std::async立即返回一个std::future对象。
+
+主线程既可使用std::future::get获取结果，如果调用过程中，任务尚未完成，则主线程阻塞至任务完成。
+
+主线程也可使用std::future::wait_for等待结果返回，wait_for可设置超时时间，如果在超时时间之内任务完成，则返回
+
+std::future_status::ready状态；如果在超时时间之内任务尚未完成，则返回std::future_status::timeout状态。
