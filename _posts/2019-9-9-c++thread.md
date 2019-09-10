@@ -18,19 +18,21 @@ tags:
 4. 死锁
 5. unique_lock
 6. 条件变量
+7. atomic
+8. future和promise
 
 
 > Study hard, work hard.
 
 
 ## 与多线程相关的头文件
-c++11新标准中引入四个头文件来支持多线程编程，它们分别是<atomic>,<thread>,<mutex>,<condition_varible>和<future>。
+c++11新标准中引入四个头文件来支持多线程编程，它们分别是atomic,thread,mutex,condition_varible和future。
 
-* <atomic>:该文件主要声明了两个类,sdt::atomic和std::atomic_flag,另外还声明了一套c风格的原子类型和C兼容的原子操作的函数。
-* <thread>:该文件主要声明了std::thread类，另外std::this_thread命名空间也在改头文件中。
-* <mutex>:改头文件主要是声明了与互斥量(mutex)相关的类，包括std::mutex系列类，std::lock_guard,std::unique_lock，以及其他的类型函数。
-* <condition_variable>:该文件主要声明了与条件变量相关的类，包括std::condition_variable和condition_variable_any。
-* <future>:改头文件中主要声明了std::promise,std::package_task两个Provider类，以及std::future和std::shared_future两个Future类，另外还有一些与之相关的类型和函数，std::async()函数声明在此有文件中。
+* atomic:该文件主要声明了两个类,sdt::atomic和std::atomic_flag,另外还声明了一套c风格的原子类型和C兼容的原子操作的函数。
+* thread:该文件主要声明了std::thread类，另外std::this_thread命名空间也在改头文件中。
+* mutex:改头文件主要是声明了与互斥量(mutex)相关的类，包括std::mutex系列类，std::lock_guard,std::unique_lock，以及其他的类型函数。
+* condition_variable:该文件主要声明了与条件变量相关的类，包括std::condition_variable和condition_variable_any。
+* future:改头文件中主要声明了std::promise,std::package_task两个Provider类，以及std::future和std::shared_future两个Future类，另外还有一些与之相关的类型和函数，std::async()函数声明在此有文件中。
 
 
 ```c++
@@ -432,6 +434,14 @@ int main()
 2. 不要资源传递给用户的函数。
 
 ## 死锁
+死锁的条件：
+1. 资源互斥，某个资源在某一时刻只能被一个线程持有。
+2. 持有一个以上的互斥资源的线程在等待其它进程持有的互斥资源；
+3. 不可抢占，只有在某互斥资源的持有线程释放了该资源之后，其它线程才能去持有该资源。
+4. 环形等待，两个或者两个以上的线程各自持有某些互斥资源，并且各自等待其它线程所持有的的互斥资源。
+
+在一些复杂的并行编程场景，如何避免死锁是一个很重要的话题，在实践中，当我们看到有两个锁嵌套加锁的时候就要特别提高警惕，它极有可能满足了条件 2 或者 4。
+
 如果你讲某个mutex上锁了，却一直不释放，另一个线程访问该锁保护资源的时候就会发生死锁，这种情况可以使用local_guard保证析构的时候能够释放锁，但是当一个操作需要使用两个互斥元的时候，仅仅使用lock_guard并不能保证不会发生死锁，如下面的例子：
 
 ```c++
@@ -774,3 +784,118 @@ void function_2() {
 ```
 
 除了notify_one()函数，c++还提供了notify_all()函数，可以同时唤醒所有处于wait状态的条件变量。
+
+## atomic ##
+atomic：原子类型是对数据的封装，可以防止数据竞争，同步多线程间的内存访问。头文件主要包含两个类：atomic和atomic_flag。
+
+```c++
+#include <iostream>       // std::cout
+#include <atomic>         // std::atomic, std::atomic_flag,   ATOMIC_FLAG_INIT
+#include <thread>         // std::thread, std::this_thread::yield
+#include <vector>         // std::vector
+
+std::atomic<bool> ready (false);
+std::atomic_flag winner = ATOMIC_FLAG_INIT;//静态存储时间的原子变量的常量初始化(宏)
+
+void count1m (int id) {
+while (!ready) { std::this_thread::yield(); }      // wait for the ready signal
+for (volatile int i=0; i<1000000; ++i) {}          // go!, count to 1 million
+if (!winner.test_and_set()) { std::cout << "thread #" << id << " won!\n"; }//原子地将flag设置为true并返回其先前的值 (函数)
+};
+
+int main ()
+{
+std::vector<std::thread> threads;
+std::cout << "spawning 10 threads that count to 1 million...\n";
+for (int i=1; i<=10; ++i) threads.push_back(std::thread(count1m,i));
+ready = true;
+for (auto& th : threads) th.join();
+
+return 0;
+}
+```
+1. 将原子对象放在未初始化的状态中。一个未初始化的原子对象可以通过atomicinit来初始化。
+2. 用desired初始化对象。初始化不是原子性的。
+3. 原子变量不是可复制的。
+
+```c++
+#include <iostream>       // std::cout
+#include <atomic>         // std::atomic
+#include <thread>         // std::thread, std::this_thread::yield
+#include <string>
+#include <mutex>
+
+std::atomic<int> foo(0);
+std::atomic<long> foo1(0);
+std::mutex mu;
+
+void printString(std::string str, long foo1) {
+	std::unique_lock<std::mutex> guard(mu);
+	std::cout << str << foo1 << '\n';
+}
+
+void set_foo(int x) {
+	foo = x;
+	while (foo1 != 100)
+	{
+		foo1++;
+		printString("set_foo foo1: ", foo1);
+	}
+}
+
+void print_foo() {
+	while (foo == 0) {             // wait while foo=0
+		std::this_thread::yield();
+	}
+	printString("foo: ", foo1);
+	while (foo1 != 100)
+	{
+		foo1++;
+		printString("print_foo foo1:  ", foo1);
+	}
+}
+
+int main()
+{
+	std::thread first(print_foo);
+	std::thread second(set_foo, 10);
+	first.join();
+	second.join();
+	return 0;
+}
+```
+
+## future和promise
+future和promise的作用是在不同的线程之间传递数据。使用指针也可以完成数据的传递，但是指针非常危险，因为互斥量不能阻止指针的访问；而且指针的方式传递的数据是固定的，如果改变数据类型，那么还需要更改有关的接口，比较麻烦了promise支持泛型的操作，更加方便编程处理。
+
+假设线程1需要线程2的数据，那么组合使用的方式如下：
+1. 线程1初始化一个promise对象和一个future对象，promise传递给线程2，相当于线程2对线程1的一个承诺；future相当于一个接受一个承诺，用来获取未来线程2传递的值。
+2. 线程2获取到promise后，需要对这个promise传递有关的数据，之后线程1的future就可以获取数据了。
+3. 如果线程1想要获取数据，而线程2未给出数据，则线程1阻塞，直到线程2的数据到达。
+
+```c++
+#include <iostream>
+#include <functional>
+#include <future>
+#include <thread>
+#include <chrono>
+#include <cstdlib>
+
+void thread_set_promise(std::promise<int>& promiseObj) {
+    std::cout << "In a thread, making data...\n";
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    promiseObj.set_value(35);
+    std::cout << "Finished\n";
+}
+
+int main() {
+    std::promise<int> promiseObj;
+    std::future<int> futureObj = promiseObj.get_future();
+    std::thread t(&thread_set_promise, std::ref(promiseObj));
+    std::cout << futureObj.get() << std::endl;
+    t.join();
+
+    system("pause");
+    return 0;
+}
+```
