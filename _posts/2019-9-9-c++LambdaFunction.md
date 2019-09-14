@@ -73,6 +73,7 @@ lambda函数是一个依赖于实现的函数对象类型,这个类型的名字�
 ```c++
 auto my_lambda_func = [&](int x) { /*...*/ };
 auto my_onheap_lambda_func = new auto([=](int x) { /*...*/ });
+my_lambda_func(1);
 ```
 ## std::function
 类模板std::function是一种通用、多态的函数封装。std::function的实例可以对任何可以调用的目标实体进行存储、复制和调用操作，这个目标实体包含普通函数、lambda表达式、函数指针以及其他函数对象。std::function对象是对c++中现有的可调用实体的一种类型安全的包裹。
