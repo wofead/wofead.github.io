@@ -35,7 +35,10 @@ tags:
 10. %w 字母和数字
 11. %x 十六进制数字
 
+%它们的大写字母表示它们的补集。
+
 还有一些魔法字符，也可以称之为元字符。
+
 其中与其他的语言不同的是在lua中%是转义字符而不是'\'。
 
 1. \+ 重复一次或多次
@@ -45,28 +48,37 @@ tags:
 5. ^ 位于模式的开头 从头开始匹配  位于[]中开头表示非
 6. $ 位于模式的结尾 从尾部向前匹配
 
-在lua中可以使用()来对匹配到的结果进行返回
+在lua中可以使用()来对匹配到的结果进行返回。这个称之为**捕获**。
+
+
 ```lua
 pair = "name = Anna"
 key, value = string.match(pair, "(%a+)%s*=%s*(%a+)")
 print(key, value) -- name Anna
+
 s = [[then he said: "it's al right"!]]
 q, quotedPart = string.match(s, "([\"'](.-)%1")
 print(quotedPart) -- it's al right
+
+--find的使用
+string.find("a [word]","[")
+-- stdin:1: malformed pattern(missing ']')
+string.find("a [word]","[",1,true)
 ```
 
 ## 模式匹配相关的函数
-1. string.find(ste,reg) --返回开始和结束的index
+1. string.find(ste,reg) --返回开始和结束的index，find是存在是个参数的，如果寻找的是特殊的字符，例如‘[’是模式匹配中的，那就需要第三个参数和第四个参数，第三个参数表明从哪个位置开始索引，第四个数字表示简单查询。
 2. string.match -- 返回匹配到的内容
 3. string.gmatch --返回一个函数，通过函数可以遍历一个字符串出现的指定模式
-4. string.sub
+4. string.sub --截取字符串
+5. string.gsub --替换字符串，当第三个参数是字符串的时候，直接替换。如果是函数，会把匹配的内容作为参数传给函数，将函数的返回值替换原来的值，如果是表，匹配的内容作为键值去取数据。
 
 string.sub 有三个参数，它的第三个参数不仅仅可以是字符串还可以是函数或者表。
+
 当时函数的时候每次匹配到合适的字符串的时候就调用函数参数为匹配到的值，用函数的返回值来替换字符串；当是表的时候，将匹配到的字符串作为key值来得到
 用来替换的字符串。
 
-
-
+%f[char-set]表示前置模式。该模式只有在后一个字符位于char-set内而前一个字符不在时匹配一个空字符串。
 
 
 ```lua
@@ -80,6 +92,11 @@ end -- some string
 name = "Lua"
 status = "great"
 print(expend("$name is $status")) --Lua is great	2 其中2表示匹配成功的字符串
+
+--使用%bxy，x和y为任意字符，匹配它们两个中间的字符串
+local s = "a (enclosed (in) parentheses) line"
+local smatch = string.match(s, "%b()")
+print(smatch)
 ```
 ## url编码
 这种编码方式会将特殊字符编码为"%xx"的形式（=、&、+）,会将空格转换为加号"+"。例如字符串"a+b = c",就会别编码成"a%2Bb+%3D+c"。
