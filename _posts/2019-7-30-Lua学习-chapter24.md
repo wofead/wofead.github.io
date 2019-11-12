@@ -14,6 +14,7 @@ tags:
 
 ### 目录
 1. 协程
+2. yield
 
 > 人人真真的生活过，学习过，改变过，努力过，才能创造出一个满意的自己。
 
@@ -92,6 +93,31 @@ end
 
 consumer(filter(producer()))
 ```
+
+## yield
+
+一般我们沉睡一个协程的时候都是使用yield，但是yield又没有参数，是怎么确定沉睡的那个协程的呢？
+
+在这里我首先测试了一下如下的代码，发现会报错，突然明白，原来协程的阻塞 必须写到参数的函数里面，才能阻塞这个协程，写到主线程里面，因为知不道要阻塞的协程会直接报错。
+
+所以下面的代码应该将 coroutine.yield()放到test函数里面去，就正确了。
+```lua
+local function test()
+    print("test")
+	--coroutine.yield()
+    print("test1")
+end
+
+local co = coroutine.create(test)
+coroutine.yield()
+```
+
+	lua.exe: attempt to yield from outside a coroutine
+	stack traceback:
+	[C]: in function 'coroutine.yield'
+
+
+
 
 
 

@@ -18,6 +18,7 @@ tags:
 3. URL编码
 4. 制表符的展开
 5. 诀窍
+6. 模式
 
 
 > Just be handsome.
@@ -131,4 +132,43 @@ return s
 2. "%a*" 会导致空字符串
 所以在使用 ".-"的时候注意会匹配到空字符串。
 
+## 模式
+%bxy匹配成对的字符串和%f[char-set]的前置模式（后一个字符位于模式内，而前一个字符不在模式内）
+
+```lua
+local s = "a [word]!"
+
+local s = "a [word]!"
+
+print(string.match(s,"()(%b[])()")) --3 [word] 9，()用来捕获输出值，当使用捕获的时候，没有输出捕获的内容，在这里双括号里面没有任何东西的时候，会输出匹配内容的第一个字符的位置和最后一个字符的后一个位置。
+
+print(string.sub(s,string.match(s,"()%b[]()"))) --[word]!
+
+s = "one day i will find one way!"
+
+print(string.gmatch(s,"%f[%w][%w*]%f[%W]"))
+
+for word in string.gmatch(s,"%f[%w][%w*]%f[%W]") do
+    print(word)
+end
+
+-- 只有一个i
+-- 如果将[%w*]换成one，将会输出两个one。
+```
+
+
+在捕获中，还有一个非常重要的概念，那就是匹配第几次捕捉到的内容，例如匹配双引号或者单引号中的字符串，如果仅仅使用"[\"'].-[\"']",这样的模式，但是遇到"it's all right!"这样的就会出错。
+
+所以在这里我们通过通过捕捉，然后使用“%n”这样的形式(表示匹配第n个不会的副本）。
+
+还可以用在gsub中：
+
+```lua
+s = [[then he said:"it's all right!"]]
+print(string.match(s,"([\"'])(.-)%1")) --捕获第一个匹配值，和要匹配的内容，其中%1里的内容应该是'"'
+
+s = "hello world!"
+
+print(string.gsub(s,"(.)(.)","%2%1")) --ehll oowlr!d	6，6表示替换发生了几次
+```
 

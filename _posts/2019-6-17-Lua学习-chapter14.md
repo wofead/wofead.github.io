@@ -29,25 +29,7 @@ tags:
 7. 字符串缓冲区 --在这里注意大量连接字符串的时候使用table.cancat(),把字符串放到表中进行链接。第二个参数为在链接的时候插入什么。
 8. 图像
 
-```lua
-print(string.format("%x", 0xff & 0xabcd))
-print(string.format("%x", 0xff | 0xabcd))
-print(string.format("%x", 0xff ~ 0xabcd))
-print(string.format("%x", ~0xff))
-print(string.format("%x", 0xff >> -12))
-print(string.format("%x", 0xff << 12))
-print(string.format("%x", 0xff << 80))
---[[
-cd
-abff
-ab32
-ffffffffffffff00
-ff000
-ff000
-0
---]]
 
-```
 
 
 
