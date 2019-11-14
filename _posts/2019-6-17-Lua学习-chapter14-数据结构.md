@@ -380,12 +380,14 @@ local thePath = findPath(tempGraph,"you","anuj")
 
 在这里我们还可以给边添加距离的信息，然后通过使用dijkstra算法来计算两个点之间的最短距离。
 
+在添加value值的时候，注意一点，那就是别忘记标注究竟是谁到目标点的距离。
+
 ```lua
 local function name2node(graph, name)
     local node = graph[name]
     if not node then
         --node doesn't exist
-        node = { name = name, adj = {} }
+        node = { name = name, adj = {}, label = tonumber(string.sub(name,2)), value = {} }
         graph[name] = node
     end
     return node
@@ -399,7 +401,8 @@ local function readGraph(fileName)
         local nameFrom, len, nameTo = string.match(line, "(%S+)%s+(%S+)%s+(%S+)")
         local from = name2node(graph, nameFrom)
         local to = name2node(graph, nameTo)
-        to.value = len
+        --一定要加上label，否则不知道谁到这个节点的长度
+        to.value[from.label] = len
         table.insert(from.adj, to)
     end
     return graph
@@ -407,20 +410,100 @@ end
 
 local tempGraph = readGraph("graph")
 
-local function traceGraph(graph)
+
+```
+
+Dijkstra算法，又复习了一下，现在还是存在一些疑问，不过先把我实现的代码贴到这里，一会儿根据代码来分析。
+
+```lua
+local function printArc(arc)
+    for i, v in ipairs(arc) do
+        for j, k in ipairs(v) do
+            if k == math.maxinteger then
+                io.write("\t∞")
+            else
+                io.write("\t" .. k)
+            end
+        end
+        io.write("\n")
+    end
+end
+
+-- 每个节点的访问信息，visit：是否已经访问，path：路径是什么，value：值是多少
+local function dijkstra(graph, startNode)
+    local arc = {}
+    --初始化邻接矩阵
+    for i = 1, 6 do
+        for j = 1, 6 do
+            if not arc[i] then
+                arc[i] = {}
+            end
+            arc[i][j] = math.maxinteger
+        end
+    end
+
+    --根据图里面的信息赋初值
     for i, v in pairs(graph) do
-        for j, s in ipairs(v.adj) do
-            print(v.name,s.value, s.name)
+        for i, node in ipairs(v.adj) do
+            arc[v.label][node.label] = tonumber(node.value[v.label])
+        end
+        arc[v.label][v.label] = 0
+    end
+
+    printArc(arc)
+
+    local dis = {}
+    startNode = graph[startNode]
+    --初始化dis数组
+    for i, v in ipairs(arc[startNode.label]) do
+        local nodeInfo = {value = 0, visit = false, path = ""}
+        if v == 0 then
+            nodeInfo.visit = true
+            nodeInfo.path = startNode.name .. "---->" .. startNode.name
+        elseif v < math.maxinteger then
+            nodeInfo.value = v
+            nodeInfo.path = startNode.name .. "---->" .. graph["v"..i].name
+        else
+            nodeInfo.value = math.maxinteger
+        end
+        dis[i] = nodeInfo
+    end
+    local count = 1
+    local temp = 0
+    while count ~= 6 do
+        temp = 0
+        local min = math.maxinteger
+        for i, v in ipairs(dis) do
+            if not v.visit and v.value < min then
+                min = v.value
+                temp = i
+            end
+        end
+        -- 已经全部寻找完了
+        if temp == 0 then
+            break
+        end
+        dis[temp].visit = true
+        count = count + 1
+        for i = 1, 6 do
+            if not dis[i].visit and arc[temp][i] ~= math.maxinteger and (dis[temp].value + arc[temp][i] < dis[i].value) then
+                dis[i].value = dis[temp].value + arc[temp][i]
+                dis[i].path = dis[temp].path .. "-->v" .. tostring(i)
+            end
+        end
+    end
+
+    for i, v in ipairs(dis) do
+        if v.visit == false then
+            print("not a path can access v" .. i)
+        else
+            print(v.path .. " = " .. v.value)
         end
     end
 end
 
-traceGraph(tempGraph)
-
+dijkstra(tempGraph, "v1")
 
 ```
 
-
-[https://blog.csdn.net/qq_35644234/article/details/60870719](https://blog.csdn.net/qq_35644234/article/details/60870719)
-
-[https://blog.csdn.net/qq_35080184/article/details/83317919](https://blog.csdn.net/qq_35080184/article/details/83317919)
+Dijkstra算法采用的是一种贪心的策略，核心是一个dis的数组，这个数组放着开始节点到其它节点的信息，距离，是否访问和如何访问的路径，每次我们在dis中（出去访问过的点）寻找一个最小的值，然后将该值标记为已经访问，并以该点为起始点遍历他能到的点，算出距离和起始点到该点的距离进行比较，如果小，则更新value值和path。
