@@ -16,6 +16,7 @@ tags:
 1. 类
 2. 继承
 3. 私有性
+4. 单方法对象
 
 > 星空中划过的不仅仅是流星，还有我对这个世界的畅想。
 
@@ -84,3 +85,26 @@ function newAccount(initBalance)
 end
 ```
 通过返回一个外部对象，这样就调用不到self了。
+
+## 单方法对象
+
+```lua
+local function newObject(value)
+    return function(action,v)
+        if action == "get" then
+            return value
+        elseif action == "set" then
+            value = v
+        else
+            error("invalid action")
+        end
+    end
+end
+
+local d = newObject(0)
+
+print(d("get"))
+print(d("set", 10))
+print(d("get"))
+```
+

@@ -183,6 +183,7 @@ os.exit用于终止程序的执行。
 os.getev用于获取环境变量。
 
 os.execute用来运行系统命令，等价于c中的system。还用io.popen也是运行一条系统命令,但是该函数可以重定向命令的输入输出流。
+
 ```lua
 function create(dirname)
 	os.execute("mkdir "...dirname)
