@@ -91,6 +91,8 @@ lua标准库没有定义任何c语言全局变量，它将所有的状态都保�
 
 当创建好一个状态并在其中加载了标准库之后，就可以处理用户的输入了。程序会首先调用函数luaL_loadstring来编译用户输入的每一行内容。如果没有错误，则返回零，并向栈中压入编译后得到的函数。然后，程序调用函数lua_pcall从栈中弹出编译后的函数，并以保护模式运行。如果没有发生错误，pcall一样返回零，如果发生错误，这两个函数都会像栈中压入一条错误信息。然后我们可以通过lua_tostring来获取错误信息。
 
+在其中有一个lua_pop函数，该函数表示从当前lua状态栈中弹出几个元素，如lua_pop( pLua, 2 )表示从栈顶弹出2个元素，当第二个参数填入-1时弹出所有元素即lua_pop( pLua, -1 ).
+
  
 
 ## lua堆栈操作
@@ -102,10 +104,13 @@ lua和c之间的通信主要组件是无处不在的虚拟栈，几乎所有的A
 C API提供了一系列lua_is\*的函数，其中\*可以是任意一种lua数据类型。这些函数包括lua_isnil,lua_isnumber,lua_isstring和lua_istable.lua_type返回栈中元素的类型，包含：LUA_TSTRING，LUA_TBOOLEAN，LUA_TNUMBER，LUA_TSTRING等。
 
 针对于lua堆栈的操作。
+
+C API使用索引（index）来引用栈中的元素。。第一个被压如栈的元素索引为1，第二个被压入的元素索引为2，-1表示栈顶元素，-2表示在它之前被压入栈的元素。
+
 ```c
 static void stackDump(lua_State* L) {
 	int i;
-	int top = lua_gettop(L);
+	int top = lua_gettop(L); //栈深度
 	for (int i = 0; i <= top; i++)
 	{
 		int t = lua_type(L, i);
@@ -146,7 +151,7 @@ static void test() {
 	stackDump(L);// true 10 true hello
 	lua_settop(L, 6);//设置栈中元素个数,0的话清空栈，大于原来个数补nil
 	stackDump(L);//true 10 true hello nil nil
-	lua_rotate(L, 3, 1);//旋转指定位置的值，并把栈顶元素补充过来
+	lua_rotate(L, 3, 1);//将指定元素向栈顶转动n个位置，并把栈顶元素补充过来
 	stackDump(L);//true 10 nil true hello nil
 	lua_remove(L, -3);//移除指定位置的值
 	stackDump(L);//true 10 nil hello nil
