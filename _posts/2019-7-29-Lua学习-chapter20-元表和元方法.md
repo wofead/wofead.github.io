@@ -185,7 +185,7 @@ table访问的元方法：
 
 **__index 和 __newindex**
 
-**__index**的作用，访问当前table的时候，发现没有这个键值，那个table就会去寻找metatable中__index元，如果存在__index,就去__index包含表格,就去表中寻找键值。当__index为函数时，则调用方法。方法会默认传入两个参数，一个是self,另一个是key值
+**__index**的作用，访问当前table的时候，发现没有这个键值（或者键值对应的值为空），那个table就会去寻找metatable中__index元，如果存在__index,就去__index包含表格,就去表中寻找键值。当__index为函数时，则调用方法。方法会默认传入两个参数，一个是self,另一个是key值
 
 ```lua
 mytable = setmetatable({key1 = "value1"}, { __index = { key2 = "metatablevalue" } })
