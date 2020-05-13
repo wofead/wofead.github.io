@@ -119,5 +119,91 @@ Redis
 2. 标记镜像：就是要把镜像push那个仓储中：`docker tag friendlyhello 用户名/仓储名:标记` 用户名类似于github的用户名，仓储名和github的仓储名意义一致，标记对应远程仓储中的tag。
 3. 接下来我们就可以从远程仓储中提取并运行了： `docker run -p 4000:80 614667387/jow:test`
 
+### 服务
 
+在分布式的应用程序中，应用程序的不同部分被称为服务，例如我们常说的游戏中的game服、登录服以及聊天服等等。服务实际上是“生产中的容器”。服务只是运行一个镜像，但他编码镜像运行的方式-应该使用哪个端口，容器应该运行多少个副本，一遍服务具有所需的容量，以及等等。缩放服务会更改运行该软件的容量实例数量，从而为流程中的服务分配更多的计算资源。
+
+使用docker平台定义，运行和扩展服务非常简单-只需编写docker-compose.yml文件即可。
+
+```dockerfile
+version: "3"
+services:
+  web:
+    # replace username/repo:tag with your name and image details
+    image: 614667387/jow:test #镜像
+    deploy:
+      replicas: 5 #5个实例
+      resources:
+        limits:
+          cpus: "0.1" #10%的cpu
+          memory: 50M #50M的RAM
+      restart_policy:
+        condition: on-failure #一个失败重新启动容器
+    ports:
+      - "80:80" #主机端口80映射web端口80
+    networks:
+      - webnet #默认设置(负载平衡覆盖网络)
+networks:
+  webnet:
+```
+
+接下来运行新的负载均衡应用程序：
+
+1. 运行命令`docker swarm init`
+2. 运行`docker stack deploy -c docker-compose.yml getstartedlab`.这个负载均衡应用程序命名为getstartedlab
+3. 这个时候我们就可以看主机上有几个容器实例了：`docker service ls`
+4. 在服务中运行的单个容器称为任务，可以看到上面有个getstartedlab_web服务，通过`docker service ps getstartedlab_web`查看此服务下的任务
+5. 也可以使用`docker container ls -q`来看任务
+6. 关闭应用程序使用`docker stack rm getstartedlab`
+7. 关闭群`docker swarm leave --force`
+
+### 集群
+
+swarm是运行docker并加入到集群中的一组机器。但是现在它们将由群集管理器在群集上执行。群体中的机器可以是物理的或虚拟的。加入群体后，它们被称为节点。
+
+swarm管理人员可以使用多种策略来运行容器，比如“最空的节点” -它使用容器填充使用最少的机器。或‘全局’，这确保了每个机器只能得到指定容器的一个实例。你可以指示swarm manager在compose文件中使用这些策略。
+
+群体管理者是群体中唯一可以执行你的命令的机器，或者授权其它机器作为工作者加入群里。工人提供能力，并没有权利告诉任何其它机器可以做什么和不可以做什么。
+
+到目前为止，之前都是在本地机器上以单主机模式使用Docker。但是Docker也可以切换到群集模式，这就是使用群集的原因。启用群模式使当前机器成为群管理器。则Docker将运行您正在管理的群集上执行的命令，而不仅仅是在当前的机器上。
+
+创建个集群。一个群由多个节点组成，可以是物理机或虚拟机。基本概念很简单：运行docker swarm init启用群模式，使当前的机器称为群管理器，然后docker swarm join在其他机器上运行，让它们作为工人加入群体。
+
+1. 启动Hyper-V管理器 
+2. 单击右侧菜单中的虚拟交换机管理器 
+3. 单击创建类型为外部网络的虚拟交换机，给它的名称myswitch，并检查框共享您的主机的活动网络适配器 
+4. `docker-machine create -d hyperv –hyperv-virtual-switch “myswitch” myvm1 ` 和`docker-machine create -d hyperv –hyperv-virtual-switch “myswitch” myvm2 `
+5. docker-machine ls 列出机器并获取其IP地址。
+
+接下来初始化群并添加节点：
+
+1. docker-machine ssh myvm31
+2. 然后让myvm1为一个管理员：docker swarm init 
+3. docker node ls ，可以看到myvm1 已经成为管理员了
+4. 以管理员身份再运行一个cmd.exe.然后运行命令：docker-machine ssh myvm2
+5. docker swarm join --token SWMTKN-1-0csyw4yz6uxob90h0b8ejoimimrgisiuy9t2ugm8c1mxfvxf99-7q7w5jw1mrjk1jlri2bcgqmu8 10.211.106.194:2377(对应你的tocken，在myvm1，成为管理员执行成功之后的输出里面)
+6. 然后再切换到myvm1 的cmd.exe中执行命令：docker node ls 
+7. docker swarm leave：离开集群
+
+在集群上部署应用程序：
+
+1. docker-machine为swarm管理器配置一个shell ，运行docker-machine env myvm31
+2. @FOR /f "tokens=*" %i IN ('docker-machine env myvm1') DO @%i
+3. 再运行docker-machine ls以验证它myvm1 是否为活动机器 
+4. 在swarm管理器上部署应用程序
+5. 使用之前的docker-compose.yml.`docker stack deploy -c docker-compose.yml getstartedla`
+6. docker stack ps getstartedlab 查看服务详情
+7. 使用docker-machine ls,来看集群的信息
+
+
+
+```dockerfile
+比如说如果修改了docker-compose.yml文件后，执行命令：
+docker stack deploy -c docker-compose.yml getstartedlab
+再次运行以部署这些更改即可
+比如说前面提到的移除应用程序：docker stack rm getstartedlab
+离开群：docker swarm leave –force
+重新启动已停止的虚拟机，执行：
+docker-machine start <machine-name>
+```
 
