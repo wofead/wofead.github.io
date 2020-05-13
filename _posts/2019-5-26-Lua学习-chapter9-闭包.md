@@ -26,9 +26,9 @@ tags:
 
 ```lua
 function foo(x) return 2*x end
-fucction (x) body end --就是韩式的构造器
+function (x) body end --就是韩式的构造器
 function derivative (f, delta)
-delta = delta or 1e-4
+delta = delta or 1e-4  --0.0001
 return function(x)
 		(f(x + delta) - f(x)) / delta)
 	end
