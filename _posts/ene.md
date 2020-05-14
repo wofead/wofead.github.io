@@ -99,6 +99,55 @@ public static class ProjectEditor
 
 ## 扩展Inspector视图
 
+Inspector视图可以用来展示组件以及资源的详细信息面板，每个组件的面板信息是各不相同的。接下来我们扩展一下Camera组件：
+
+```c#
+using UnityEngine;
+using UnityEditor;
+
+ [CustomEditor(typeof(Camera))]//自定义的组件名称
+public class InspectorEdito:Editor
+{
+    public override void OnInspectorGUI()//重新绘制
+    {
+        if (GUILayout.Button("扩展按钮"))
+        {
+
+        }
+        base.OnInspectorGUI();//绘制原有元素
+    }
+}
+```
+
+Inspector和Project以及Scene有很大的不同，它是针对于一个组件，而不是创建或者修改一个函数，所以这个类需要继承Editor，然后自定义的内容放到类的上面，而不是方法名字的上面。
+
+我们可以通过反射的方式取到Unity原生的绘制方式，然后绘制：
+
+```c#
+[CustomEditor(typeof(Transform))]
+public class AssemblyTransform : Editor
+{
+    private Editor m_editor;
+    private void OnEnable()
+    {
+        m_editor = Editor.CreateEditor(target,Assembly.GetAssembly(typeof(Editor)).GetType("UnityEditor.TransformInspector", true));
+    }
+
+    public override void OnInspectorGUI()
+    {
+        GUI.enabled = false;//开始静止，不影响上面的按钮和下面的按钮，只影响中间的
+        //base.OnInspectorGUI();
+        m_editor.OnInspectorGUI();
+        GUI.enabled = true;
+    }
+}
+
+```
+
+我们还可以设置它的组件状态，同过设置GameObject属性来设置。
+
+我们还可以设置CONTEXT菜单栏，它是操作组件属性的，是个函数。
+
 ## Unity editor
 
 ```c#
