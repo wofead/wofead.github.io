@@ -21,14 +21,35 @@ docker包含三个基本概念：
 
 docker使用C/S架构模式，使用远程API来管理和创建docker容器。
 
-安装：可以通过下载阿里云的镜像来下载：http://mirrors.aliyun.com/docker-toolbox/windows/docker-toolbox/
+安装：docker的安装有两种方案，其中一种旧的使用docker toolbox，还以一种是新的使用docker for windows，后面这种需要win10,还要是特定的一些版本，但是推荐后面这种方法。
+
+Toolbox：可以通过下载阿里云的镜像来下载：http://mirrors.aliyun.com/docker-toolbox/windows/docker-toolbox/。
+
+我们使用后面docker for windows这种方式。下载地址：
+
+接下来我们来聊一聊：hyper-v 虚拟机与virtualbox和VMware
+
+1. VMware工作站(VMware Workstation)是VMware公司销售的商业软件产品之一。该工作站软件包含一个用于英特尔x86相容容电脑的虚拟机套装，其允许用户同时创建和运行多个x86虚拟机。每个虚拟机实例可以运行其自己的客户机操作系统，如(但不限于)Windows、Linux、BSD变生版本。用简单术语来描述就是，VMware工作站允许一台真实的电脑在一个操作系统中同时开启并运行数个操作系统。其它VMware产品帮助在多个宿主电脑之间管理或移植VMware虚拟机。
+2. Oracle VirtualBox是由德国InnoTek软件公司出品的虚拟机软件，现在则由甲骨文公司进行开发，是甲骨文公司xVM虚拟化平台技术的一部份。它提供用户在32位或64位的Windows、Solaris及Linux 操作系统上虚拟其它x86的操作系统。用户可以在VirtualBox上安装并且运行Solaris、Windows、DOS、Linux、OS/2 Warp、OpenBSD及FreeBSD等系统作为客户端操作系统。
+3. Hyper-V采用微内核的架构，兼顾了安全性和性能的要求。Hyper-V底层的Hypervisor运行在最高的特权级别下，微软将其称为ring -1（而Intel则将其称为root mode），而虚拟机的OS内核和驱动运行在ring 0，应用程序运行在ring 3下，这种架构就不需要采用复杂的BT（二进制特权指令翻译）技术，可以进一步提高安全性。
+
+Docker 是基于 Linux 内置的 Namespace 和 CGroup 等系统内隔离机制而抽象出来的一种轻虚拟化技术。与虚拟机相比，它以一种轻量级的方式实现了运行空间的隔离。如果物理机是一幢住宅楼，虚拟机就是大楼中的一个个套间，而容器技术就是套间里的一个个隔断。不难理解，Docker 作为一种隔断，它并不能基于一种内核（Linux）提供另一种内核（Windows）的虚拟化运行环境。所以，基于 Linux 的 Docker 是不支持运行 Windows 应用的。
+
+后来windows也提供了Windows容器，Docker for Windows 在新的版本中添加了一个贴心的菜单，可以一键切换 Linux 容器和 Windows 容器。
+
+作为容器技术的代表，Docker 可以以两种形式运行在 Windows 10上：以 Hyper-V 虚拟机的形式运行 Linux 格式的容器，或者运行原生的 Windows 容器。其中前者运行 Linux 格式的应用程序，后者能运行 Windows 应用程序。
+
+docker运行是需要linux内核的,为了能在非linux系统使用docker,官方早期提供的Toolbox方案就是使用虚拟机启动一个linux,然后在这个虚拟机中运行docker,免费的虚拟机当时使用最多的就是virtualbox。
+
+现在有原生版本的docker了,在windows上是使用的windows10内置的hyper-v虚拟机,所以不在需要安装virtualbox,但是对系统的要求也提高了,因为hyper-v的虚拟机只有部分版本的windows10才有内置,比如家庭版的windows10就没有hyper-v组件,不能运行原生版本的docker,还是只能通过toolbox。
 
 为了在docker中更快的安装各种插件，可以在Docker中设置镜像加速，在setting中，的Docker Engine中，registry-mirrors中添加加速镜像。
 
 ```
 "registry-mirrors": [
     "https://hub-mirror.c.163.com/",
-    "https://reg-mirror.qiniu.com"
+    "https://reg-mirror.qiniu.com",
+    https://lck6gozx.mirror.aliyuncs.com
   ]
 ```
 
