@@ -4,6 +4,8 @@
 
 常用符号的查询：https://www.maixj.net/wz/mathjax-14939
 
+常用的方法总结：https://math.meta.stackexchange.com/questions/5020/mathjax-basic-tutorial-and-quick-reference
+
 
 
 MathJax采用的是LaTex语法，在应用的过程中，我们会经常使用一些希腊字母和希伯来字母，在这里记录一些常用的字符用来查询。
