@@ -115,3 +115,8 @@ lua_rawgetp(L,LUA_REGISTRYINDEX,(void *) &key);//从注册表中取值
 mystr = lua_tostring(L,-1);
 ```
 
+**upvalue**
+
+如果函数f2定义在函数f1中，那么f2为f1的内嵌函数，f1位f2的外包函数，外包和内嵌都具有传递性，f2的内嵌一定是f1的内嵌，f1的外包一定也是f2的外包。
+
+内嵌函数可以访问外包函数的局部变量，这些局部变量被称为该内嵌函数的外部局部变量或者说**upvalue**。
