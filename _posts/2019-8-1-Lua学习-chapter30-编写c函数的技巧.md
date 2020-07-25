@@ -120,3 +120,21 @@ mystr = lua_tostring(L,-1);
 如果函数f2定义在函数f1中，那么f2为f1的内嵌函数，f1位f2的外包函数，外包和内嵌都具有传递性，f2的内嵌一定是f1的内嵌，f1的外包一定也是f2的外包。
 
 内嵌函数可以访问外包函数的局部变量，这些局部变量被称为该内嵌函数的外部局部变量或者说**upvalue**。
+
+
+
+## UserData和LightUserData
+
+可以让C返回一个句柄给Lua，而Lua可以将句柄再通过在C中注册的方法传回C。
+
+userdata:
+userdata通过Lua的API(lua_newuserdata())分配内存，就像C里的malloc()函数分配内存，
+但不需要调用free()去释放内存，该内存是由LUA的GC机制进行回收。
+
+lightuserdata:
+lightuserdata通过LUA的API(lua_pushlightuserdata())创建，返回一个指针。
+当你需要把这个一个C的对象传到LUA里，并且需要自己管理这个指针时，lightuserdata就很适用了。
+但是，这个C对象是需要自己管理，LUA并不会帮忙回收。
+
+1.userdata是由LUA的GC机制进行回收
+2.lightuserdata需要自己管理分配和回收。
