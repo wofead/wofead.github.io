@@ -37,7 +37,7 @@ f1()
 local f2 = require "mod".foo
 f2()
 ```
-require 函数在表package.loaded中检查模块是否已经被加载过。如果加载过就返回相应的值，这就避免的重复的加载。没有加载，就会通过loadfile来对其进行加载。关于文件的搜索目录，是由变量package.path执行。loadfile其实是一个加载器(loader)函数（加载器就是一个被调用时加载木块的函数）。在Xlua中，我们可以通过定制Loader，让它符合自己的要求，也可以使用内置的Loader。
+require 函数在表**package.loaded**中检查模块是否已经被加载过。如果加载过就返回相应的值，这就避免的重复的加载。没有加载，就会通过loadfile来对其进行加载。关于文件的搜索目录，是由变量package.path执行。loadfile其实是一个加载器(loader)函数（加载器就是一个被调用时加载木块的函数）。在Xlua中，我们可以通过定制Loader，让它符合自己的要求，也可以使用内置的Loader。
 
 当然require也可以加载c标准库，则使用package.loadlib进行加载，这个底层函数会查找名为luaopen_modname的函数。
 
