@@ -100,7 +100,7 @@ C API提供了两个类似的地方来存储非局部数据，即注册表(regis
 
 **注册表**
 
-注册表是一张只能被C代码访问的全局表。通常情况下，我们使用注册表来存储多个模块间的共享数据。
+**注册表是一张只能被C代码访问的全局表**。通常情况下，我们使用注册表来存储多个模块间的共享数据。
 
 注册表总是位于伪索引LUA_REGISTRYINDEX中。伪索引就像是一个栈中的索引，但是它所关联的值不在栈中。lua API中大多数接受索引作为参数的函数也能将伪索引作为参数，像lua_remove和lua_insert这种操作栈本身的函数除外。eg:获取注册表中键为“key”的值，可以使用如下的调用。
 
@@ -127,11 +127,11 @@ mystr = lua_tostring(L,-1);
 
 可以让C返回一个句柄给Lua，而Lua可以将句柄再通过在C中注册的方法传回C。
 
-userdata:
+**userdata**:
 userdata通过Lua的API(lua_newuserdata())分配内存，就像C里的malloc()函数分配内存，
 但不需要调用free()去释放内存，该内存是由LUA的GC机制进行回收。
 
-lightuserdata:
+**lightuserdata**:
 lightuserdata通过LUA的API(lua_pushlightuserdata())创建，返回一个指针。
 当你需要把这个一个C的对象传到LUA里，并且需要自己管理这个指针时，lightuserdata就很适用了。
 但是，这个C对象是需要自己管理，LUA并不会帮忙回收。
