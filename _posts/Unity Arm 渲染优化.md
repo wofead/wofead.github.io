@@ -939,13 +939,1249 @@ vertexOutput vert(vertexInput input)
 
 区域盒中的相交点以及反射向量在片段着色器中计算。您将构建新的局部修正反射向量并用该向量从局部立方体贴图中获取反射纹理。然后，您将结合纹理和反射生成输出颜色：  
 
-```
+```glsl
 float4 frag(vertexOutput input):COLOR
 {
 	float4 reflColor = float4(1,1,0,0);
 	//Find reflected vector in WS
 	float3 viewDirWS = normalize(input.viewDirInWorld);
-	float3 normalWS
+	float3 normalWS = normalize(input.normalInWorld);
+	float3 reflDirWS = relect(viewDirWS, normalWS);
+	//Working in World Coordinate System.
+	float3 localPosWs = input.vertexInWorld;
+	float3 intersectMaxPointPlanes = (_BBoxMax - localPosWS)/ refDirWS;
+	float3 intersectMinPoitPlanes = (_BBoxMin - localPosWS)/ refDirWS;
+	//Looking only for intersections in the forward direction of the ray.
+	float3 largestParams = max(intersectMaxPointPlanes, intersectMinPointPlanes);
+	//Smalleset value of the ray parameters gives us the intersection.
+	float distToIntersect = min(min(largestParams.x, largestParams.y), largestParams.z);
+	//Find the position of the intersection point
+	float3 intersectPointWS = localPosWS + reflDirWS * disToIntersect;
+	//Get local corrected reflection point
+	float3 localCorrReflDirWS = intersectPositionWS - EnvoCubeMapPos;
+	//Lookup the environment reflection texture with the right vector
+	reflColor = texCUBE(_Cube, localCorrReflDirWS);
+	//Lookup the texrure color
+	float4 texColor = tex2D(_MainTex, float2(input.tex));
+	return _AmbientColor + texColor * _reflAmount * reflColor;
 }
+```
+
+在前述片段着色器代码中，幅度 _BBoxMax 和 _BBoxMin 是包围区域的最大点和最小点。变量_EnviCubeMapPos 是立方体贴图的创建位置。请通过下列脚本将这些值传输至着色器：  
+
+```c#
+[ExecuteInEditMode]
+public class InfoToReflMaterial:MonoBehaviour
+{
+    //The proxy volume used for local reflection calculations.
+    public GameObject boundingBox;
+    void Start()
+    {
+        Vector3 bboxLength = boundingBox.transform.localScale;
+        Vector3 centerBox = boundingBox.tranform.positionl;
+        
+        //Min and max BBox points in world coordinates.
+        Vector3 BMin = centerBBox - bboxLenght / 2;
+        Vector3 BMax = centerBBox + bboxLenght / 2;
+        
+        //Pass the values to the material.
+        gameObject.renderer.shareMaterial.SetVector("_BBoxMin", BMin);
+        gameObject.renderer.shareMaterial.SetVector("BBoxMax", BMax);
+        gameObject.renderer.shareMaterial.SetVector("_EnviCubeMapPos", centerBBox);
+    }
+}
+```
+
+将 `_AmbientColor、_ReflAmount`，主纹理以及立方体贴图纹理的值传输至着色器，作为属性块的统一变量：
+
+```glsl
+Shader "Custom/ctReflLocalCubemap"
+{
+	Properties
+	{
+		_MainTex("Baes (RGB)", 2D) = "white" {}
+		_Cube("Reflection Map", Cube) = ""{}
+		_AmbientColor("Ambient Color", Color) = (1,1,1,1)
+		_ReflAmount("Reflection Amount", Float) = 0.5
+	}
+    SubShader
+    {
+        Pass
+        {
+            CGPROGRAM
+            #pragma glsl
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "UnityCG.cginc"
+            // User-specified uniforms
+            uniform sampler2D _MainTex;
+            uniform samplerCUBE _Cube;
+            uniform float4 _AmbientColor;
+            uniform float _ReflAmount;
+            uniform float ToggleLocalCorrection;
+            // ---Passed from script InfoRoReflmaterial.cs ---
+            uniform float3 _BBoxMin;
+            uniform float3 _BBoxMax;
+            uniform float3 _EnviCubeMapPos;
+            
+            struct vertexInput
+            {
+                float4 vertex : POSITION;
+                float3 normal : NORMAL;
+                float4 texcoord :TEXCOORD0;
+            };
+           	struct vertexOutput
+            {
+                float4 pos:SV_POSITION;
+                float4 tex:TEXCOORD0;
+                float3 vertexInWorld:TEXCOORD1;
+                float3 viewDirInWorld:TEXCOORD2;
+                float3 noramlInWorld:TEXCOORD3;
+			};
+            Vertex shader {}
+            Fragment shader{}
+            ENDCG
+        }
+    }
+}
+```
+
+计算包围区域相交点的算法基于使用参数表示局部位置或片段的反射射线。  
+
+#### 过滤立方体贴图  
+
+使用局部立方体贴图实现反射的其中一项优势就是立方体贴图为静态。也就是说，它在开发时生成，而非在运行时生成。这样便能够对立方体贴图图像应用任何过滤来实现某一效果。  
+
+CubeMapGen 是 AMD 提供的用于对立方体贴图应用过滤的工具。您可从 AMD 开发人员网站上获取CubeMapGen.
+
+若要将 Unity 中的立方体贴图图像导出至 CubeMapGen，您必须单独保存每张立方体贴图图像。  此工具不仅能够创建立方体贴图，而且还可选择性地单独保存每张立方体贴图图像。 
+
+
+
+您必须将此工具的脚本存储于 Asset 目录的 Editor 文件夹中。   
+
+如何使用立方体贴图编辑器工具：  
+
+1. 创建立方体贴图
+2. 从"游戏对象"菜单中启动烘焙立方体贴入工具。
+3. 提供立方体贴图和摄像机渲染位置。
+4. 如果您计划对立方体贴图应用过滤。请选择性的保存每张图像。
+
+您可以使用 CubeMapGen 为立方体贴图单独加载每张图像。  
+
+从选择立方体表面下拉菜单中选择要加载的表面，然后按下加载立方体表面按钮。加载完所有表面后，可旋转立方体贴图并检查其是否正确。  
+
+CubeMapGen 在过滤类型下拉菜单中拥有众多不同的过滤选项。选择您需要的过滤设置，然后按下过滤立方体贴图，应用过滤器。过滤过程可能会花费数分钟，具体取决于立方体贴图的大小。由于没有撤消选项，因此在应用任何过滤之前，请将立方体贴图保存为独立图像。如果过滤结果与您期待的不一样，您可以重新加载立方体贴图并尝试调整参数  。
+
+按照下列步骤将立方体贴图图像导入 CubeMapGen：  
+
+1. 选中复选框，在烘焙立方体贴图时保存独立图像。
+2. 启动CubeMapGen工具，并按照下表所示关系加载立方体贴图图像。
+3. 立方体贴图保存为单个dds 或立方体交叉图像。由于无法撤消，因此这使您能够在使用过滤器进行试验的情况下重新加载立方体贴图。  
+4. 根据需要对立方体贴图应用过滤器，直到结果满意为止。  
+5. 将立方体贴图保存为独立图像。  
+
+#### 射线与盒求交算法  
+
+直线方程：
+$$
+y = mx + b
+$$
+该方程的向量形式
+$$
+\vec r = \vec o + t * \vec D
+$$
+其中o代表原点，D代表方向矢量，t代表参数。
+
+一个包围盒可以通过最小点 A 和最大点 B 定义轴对齐包围盒 AABB。  
+
+AABB 定义了一组与坐标轴平行的直线。可使用下列方程定义每条直线：  
+$$
+x = A_x; y = A_y; z = A_z \\
+x = B_x; y = B_y; z = B_z \\
+$$
+若要找到射线与其中一条直线的相交点，只需要这两个方程相等。例如：
+$$
+O_x + t_x * D_x = A_x
+$$
+你可以将解答方程写成：
+$$
+t_{Ax} = (A_x - O_x) / D_x
+$$
+以相同方式求出这两个相交点的所有可能解：
+$$
+t_{Ax} = (A_x - O_x) / D_x \\
+t_{Ay} = (A_y - O_y) / D_y \\
+t_{Az} = (A_z - O_z) / D_z \\
+t_{Bx} = (B_x - O_x) / D_y \\
+t_{By} = (B_y - O_y) / D_y \\
+t_{Bz} = (B_z - O_z) / D_z \\
+$$
+向量形式的方程为：
+$$
+t_A = (A - O) / D \\
+t_B = (B - O) / D
+$$
+这可找出直线与立方体表面定义的平面相交的位置，但是它无法保证相交点位于立方体上。  
+
+下图显示了射线与盒相交点的 2D 表示：  
+
+![xj](C:\Users\user3\Desktop\xj.png)
+
+若要找到哪种答案确实是与盒的相交点，您需要用参数 t 中较大的值来确认最小平面上的相交点。  
+$$
+t_{min} = (t_{Ax} > t_{Ay})? t_{Ax}:t_{Ay}
+$$
+您需要用参数 t 中较小的值来确认最大平面上的相交点。  
+$$
+t_{min} = (t_{Ax} > t_{Ay})? t_{Ax}:t_{Ay}
+$$
+如果您未得到任何相交点，也必须考虑这些情况。  
+
+下图显示了无相交点的射线与盒：  
+
+![xj2](C:\Users\user3\Desktop\xj2.png)
+
+如果您保证反射面已被BBox 包围，即反射线的来源位于BBox 中，则始终存在两个与该盒相交的相交点，并
+且处理不同情况的流程也会简化  
+
+下图显示了 BBox 中的射线与盒相交点：  
+
+![xj3](C:\Users\user3\Desktop\xj3.png)
+
+#### 用于使编辑器脚本生成立方体贴图的源代码  
+
+本节提供的源代码可以供编辑器脚本生成立方贴图  。
+
+```c#
+using UnityEngine;
+using FairyGUI;
+using UnityEditor;
+using System.IO;
+/// <summary>
+/// This script must be placed in the Editor folder.
+/// The script renders the scene into a cubemap and optionally
+/// saves each cubemap image individually
+/// The script is available in the Editor mode from the
+/// Game Object menu as "Bake Cubemap" option.
+/// Be sure the camera for plane is enough to render the scene.
+/// </summary>
+public class BakeStaticCubemap:ScriptableWizard
+{
+    public Transform renderPosition;
+    public Cubemap cubemap;
+    //Camera setting
+    public int cameraDepth = 24;
+    public LayerMask cameraLayerMask = -1;
+    public Color cameraBackgroundColor;
+    public float cameraNearPlane = 0.1f;
+    public float cameraFarPlane = 2500.0f;
+    public bool cameraUseOcclusion = true;
+    //Cube setting.
+    public FilterMode cubemapFilterMode = FilterMode.Trilinear;
+    //Quality setting.
+    public int antiAliasing = 4;
+    public bool createIndividualImages = false;
+    //The folder where individual cubemap images will be saved
+    static string imageDirectory = "Assets/CubemapImages";
+    static string[] cubemapImage = new string[] { "front+Z", "right+X", "back-Z", "left-X", "top+Y", "bottom-Y" };
+    static Vector3[] eulerAngles = new Vector3[] {new Vector3(0.0f, 0.0f, 0.0f),
+                                                  new Vector3(0.0f, -90.0f, 0.0f),
+                                                  new Vector3(0.0f, 180.0f, 0.0f),new Vector3(0.0f, 90.0f, 0.0f),
+                                                  new Vector3(-90.0f, 180.0f, 0.0f),new Vector3(90.0f, 90.0f, 0.0f),
+                                                 };
+    private void OnWizardUpdate()
+    {
+        helpString = "Set the positon to render from and the cubemap to back";
+
+        if (renderPosition != null && cubemap != null)
+        {
+            isValid = true;
+        }
+        else
+        {
+            isValid = false;
+        }
+    }
+
+    private void OnWizardCreate()
+    {
+        //Create temporary camera for rendering.
+        GameObject go = new GameObject("CubemapCam", typeof(Camera));
+        Camera camera = go.GetComponent<Camera>();
+        //Camera setting
+        camera.depth = cameraDepth;
+        camera.backgroundColor = cameraBackgroundColor;
+        camera.cullingMask = cameraLayerMask;
+        camera.nearClipPlane = cameraNearPlane;
+        camera.farClipPlane = cameraFarPlane;
+        camera.useOcclusionCulling = cameraUseOcclusion;
+        //Cubemap setting
+        cubemap.filterMode = cubemapFilterMode;
+        //Set antialiasing
+        QualitySettings.antiAliasing = antiAliasing;
+
+        //Place the camera on the render position
+        go.transform.position = renderPosition.position;
+        go.transform.rotation = Quaternion.identity;
+
+        //Bake the cubemap
+        camera.RenderToCubemap(cubemap);
+        //Rendering individual images
+        if (createIndividualImages)
+        {
+            if (!Directory.Exists(imageDirectory))
+            {
+                Directory.CreateDirectory(imageDirectory);
+            }
+            RenderIndividualCubemapImages(go);
+        }
+
+        //Destroy the camera after rendering.
+        DestroyImmediate(go);
+    }
+
+    void RenderIndividualCubemapImages(Camera camera)
+    {
+        camera.backgroundColor = Color.black;
+        camera.clearFlags = CameraClearFlags.Skybox;
+        camera.fieldOfView = 90;
+        camera.aspect = 1.0f;
+        camera.gameObject.transform.rotation = Quaternion.identity;
+
+        //Render individual images
+        for (int camOrientation = 0; camOrientation < eulerAngles.Length; camOrientation++)
+        {
+            string imageName = Path.Combine(imageDirectory, cubemap.name + "_"
+                                            + cubemapImage[camOrientation] + ".png");
+            camera.transform.eulerAngles = eulerAngles[camOrientation];
+            RenderTexture renderTex = new RenderTexture(cubemap.height, cubemap.height, cameraDepth);
+            camera.targetTexture = renderTex;
+
+            Texture2D img = new Texture2D(cubemap.height, cubemap.height, TextureFormat.RGB24, false);
+            img.ReadPixels(new Rect(0, 0, cubemap.height, cubemap.height), 0, 0);
+            RenderTexture.active = null;
+            GameObject.DestroyImmediate(renderTex);
+            byte[] imgBytes = img.EncodeToPNG();
+            File.WriteAllBytes(imageName, imgBytes);
+            AssetDatabase.ImportAsset(imageName, ImportAssetOptions.ForceUpdate);
+        }
+        AssetDatabase.Refresh();
+    }
+
+    [MenuItem("GameObject/Bake Cubemap")]
+    static void RenderCubemap()
+    {
+        ScriptableWizard.DisplayWizard("Bake Cubemap", typeof(BakeStaticCubemap), "Bake!");
+    }
+}
+```
+
+### 组合放射
+
+基于局部立方体贴图的放射技巧实现了基于静态局部立方体贴图渲染高质量、高效率的反射。但是，如果对象是动态的，静态局部立方体贴图便不再有效，该技巧也无法发挥作用。
+
+你可以将静态反射与动态生成的反射相组合，从而解决此问题。
+
+如果反射表面是平面，您可以使用镜像摄像机生成动态反射。
+
+要创建镜像摄像机，可计算在运行时渲染反射的主摄像机的位置和指向。  
+
+相对于反射平面，镜像主摄像机的位置和指向  。
+
+在镜像过程中，新的反射摄像机最终表现为其轴在相对的指向。与现实中的镜子一样，左右的反射被颠倒。这意味着反射摄像机使用相反的卷绕渲染几何体。  
+
+要正确渲染几何体，您必须逆转几何体卷绕，然后再渲染反射。完成了反射渲染时，恢复原始卷绕。  
+
+构建镜像反射变换矩阵。使用此矩阵计算反射摄像机的位置和世界至摄像机变换矩阵。  
+
+将反射矩阵变换应用到主摄像机的位置和世界至摄像机矩阵。这将为您提供反射摄像机的位置和世界至摄像机矩阵。  
+
+反射摄像机的投影矩阵必须和主摄像机的投影矩阵相同。  
+
+反射摄像机将反射渲染到纹理。  
+
+为获得良好的结果，在渲染之前必须先正确设置此纹理：  
+
+* 使用纹理映射
+* 将过滤模式设置为三线性
+* 使用多重采样
+
+确保纹理大小与反射表面的面积成正比。纹理越大，反射的像素化程度越低。
+
+#### 组合反射着色器实施
+
+您可以组合着色器中的静态环境反射和动态平面反射。  
+
+着色器必须融合平面反射，在运行时通过反射摄像机渲染。要达到此目的，来自反射摄像机的纹理_ReflectionTex 作为统一变量传递到片段着色器，再使用 lerp() 函数与平面反射结果组合。  
+
+除了与局部修正相关的数据外，顶点着色器还要使用内置函数 ComputeScreenPos() 计算顶点的屏幕坐标。
+
+它将这些坐标传递给片段着色器：  
+
+```glsl
+vertexOutput vert(vertexInput input)
+{
+	vertexOutput output;
+	output.tex = input.texcoord;
+	//Transform  vertex coordinates from local to world.
+	float4 vertexWorld = mul(_Object2World, input.vertex);
+	//Transform normal to world coordinates.
+	float4 normalWorld = mul(float4(input.normal,0.0),_World2Object);
+	// Local correction
+	output.vertexInWorld = vertexWorld.xyz;
+	output.viewDirInWorld = vertexWorld.xyz - _WorldSpaceCameraPos;
+	output.normalInWorld = normalWorld.xyz;
+	// Planar reflections
+	output.vertexInScreenCoords = ComputeScreenPos(output.pos);
+	return output;
+}
+```
+
+平面反射渲染至纹理，让片段着色器能够访问片段的屏幕坐标。为此，需要将顶点屏幕坐标作为变量传递到片段着色器。
+
+在片段着色器中：
+
+* 向反射向量应用局部修正。
+* 从局部立方体贴图检索环境反射的颜色 staticRefIColor。
+
+下列代码显示了如何将使用局部立方体贴图技巧的静态环境反射与运行时使用镜像摄像机技巧渲染的动态平面反射相组合：  
+
+```
+float4 frag(vertexOutput input):COLOR
+{
+	float4 staticReflColor = float4(1,1,1,1);
+	
+	//Find reflected vector in WS.
+	float3 viewDirWS = normalize(input.viewDirInWorld);
+	float3 normalWS = normalize(input.normalInWorld);
+	float3 reflDirWS = reflect(viewDirWS, normalWS);
+	
+	//Working in world Coordinate System
+	float3 localPosWS = input.vertexInWorld;
+	float3 intersectMaxPointPlanes = (_BBoxMax - localPosWS) / reflDirWS;
+	float3 intersectMinPointPlanes = (_BBoxMin - localPosWS) / refDirWS;
+	
+	//Look only for intersections in the forward direction of the ray.
+	float3 largestParams = max(intersectMaxPointPlanes, intersectMinPointPlanes);
+	
+	//Smallest value of the ray parameters gives us the intersction.
+	float distToIntersect = min(min(largestParams.x, largestParams.y), largestParams.z);
+	
+	//Find the position of the intersection point.
+	float3 intersectPositionWS = localPosWS + reflDirWS * distToIntersect;
+	//Get local corrected reflection vector.
+	float3 localCorrReflDirWS = intersectPositionWS - _EnviCubeMapPos;
+	
+	//Lookup the environment reflection texture with the right vector.
+	float4 staticReflColor = tex2Dproj(_ReflectionTex, UNITY_PROJ_COORD(input.vertexInScreenCOoords));
+	//Revert the blending with the background color of the reflection camera 
+	dynReflColor.rgb /= (dynReflColor.a < 0.00392)?1:dynReflColor.a;
+	//Combine static environment reflections with synamic planar reflections
+	float3 combinedRefl = lerp(staticReflColor.rgb, dynReflColor.rgb,synReflColor.a);
+	//Lookup the texture color.
+	float4 texColor = tex2D(_MainTex, float2(input.tex));
+	return _AmbientColor + texColor * _ReflAmount * combiendRefl;
+}
+```
+
+从平面运行时反射纹理 _ReflectionTex 提取纹理颜色 dynReflColor。  在着色器中将 _ReflectionTex 声明为统一变量。 
+
+ 在 Property 块中声明 _ReflectionTex。这可使您能够查看它在运行时的外观，从而帮助您在开发游戏期间进行调试  。
+
+为查找纹理，可投射纹理坐标，即：将纹理坐标除以坐标向量的最后一个分量。您可以使用 Unity 内置函数UNITY_PROJ_COORD() 进行此操作。  
+
+使用 lerp() 函数组合静态环境反射和动态平面反射。组合以下所列：  
+
+* 反射颜色
+* 反射表面的纹理颜色
+* 环境颜色分量
+
+#### 组合远距离环境的反射
+
+在渲染静态和动态对象的反射时，您可能也必须考虑来自远距离环境的反射。例如，通过局部环境中某一窗户可见的天空反射。  
+
+在这种情形中，你必须组合三种不同的反射：
+
+* 来自静态环境的反射，它使用的是局部立方体贴图技巧。
+* 来自动态对象的平面反射，它使用的是镜像摄像机技巧。
+* 来自天空盒的反射，它使用的是标准立方体贴图技巧。反射向量在从立方体贴图获取纹理前不需要修正。
+
+要整合来自天空盒的反射，可使用反射向量 reflDirWS 从天空盒立方体贴图获取像素元。将天空盒立方体贴图纹理作为统一变量传递到着色器。  
+
+为确保天空盒仅可从窗户可见，请在为反射烘焙静态立方体贴图时在 alpha 通道渲染场景的透明度。  
+
+如果是不透明几何体，分配值一；如果没有几何体或几何体全部透明，分配值零。例如，在alpha 通道中使用零渲染与窗户对应的像素。  
+
+将天空盒立方体贴图 _Skybox 作为统一变量传递到着色器。  
+
+在shader代码 //Lookup the planar runtime texture 前插入几行代码：
+
+```glsl
+float4 skyboxReflColor = texCUBE(_Skybox, reflDirWS);
+staticReflColor = lerp(skyboxReflColor.rgb, staticReflColor.rgb, staticReflColor.a);
+```
+
+此代码将静态反射与来自天空盒的反射组合。  
+
+### 基于局部立方体贴图的动态软阴影
+
+此技巧使用局部立方体贴图保存代表静态环境透明度的纹理。此技巧在生成高质量软阴影时效率非常高。  
+
+#### 关于基于局部立方体贴图的动态软阴影  
+
+在您的场景中，既存在移动的对象，也有房间等静态环境。通过使用此技巧，您不必对每一帧渲染静态几何体到阴影贴图。这可让您通过纹理来表示阴影。  
+
+立方体贴图可以很好地逼近许多种类的静态局部环境，例如冰穴演示中的洞穴等不规则形状。 Alpha 通道也可表示进入房间的光线量。  
+
+运动的对象通常是除了房间外的一切。这些对象包括：  
+
+* 太阳
+* 摄像机
+* 动态对象
+
+通过用立方体纹理来表示整个房间，您可以在一个片段着色器内访问环境的任意像素元。例如，这意味着太阳可以在任意位置上，你也可以根据从立方体贴图获取的值计算照射片段上的光线量。
+
+Aipha通道或透明度可以表示进入房间的光线量。在你的场景中，将立方体贴图纹理附加到片段着色器上，这些着色器渲染你要为其添加阴影的静态和动态对象。
+
+#### 生成阴影立方体贴图
+
+首先着手于您要向其应用来自环境外部光源的阴影的局部环境。例如，房间、洞穴或笼子。  
+
+此技巧类似于基于局部立方体贴图的反射。  
+
+创建阴影立方体贴图的方式与创建反射立方体贴图相同，但您还必须添加alpha 通道。 Alpha 通道或透明度可以表示进入房间的光线量。  
+
+算出您要从中渲染立方体贴图六个面的位置。在大多数情形中，这是局部环境包围盒的中心。您需要此位置来生成立方体贴图。还必须将此位置传递到着色器，从而计算局部修正向量，以便从立方体贴图获取正确的像素元。  
+
+决定了立方体贴图中心的位置后，您可以将所有面渲染到立方体贴图纹理，再记录局部环境的透明度或alpha通道。一个区域的透明度越高，进入环境中的光线越多。如果没有几何体，则完全透明。必要时，您可以使用RGB 通道存储彩色阴影的环境颜色，如有色玻璃、反射或折射。  
+
+#### 渲染阴影
+
+在世界空间中构建从顶点或片段到一个/多个光源的向量 PiL， 然后使用此向量获取立方体贴图阴影。  
+
+在获取每个像素元前，必须对 PiL 向量应用局部修正。 ARM 建议在片段着色器中进行局部修正，从而获得更加准确的阴影。  
+
+要计算局部修正，您必须计算片段至光源向量与环境包围盒的交叉点。使用此交叉点构建从立方体贴图原点位置C 到交叉点 P 的另一向量。这可为您提供用于获取像素元的最终向量 CP。  
+
+您需要下列输入参数来计算局部修正：  
+
+* _EnviCubeMapPos 立方体贴图原点位置。
+* _BboxMax 环境包围盒的最大点。
+* _BboxMin环境包围盒的最小点。
+* Pi世界空间中的片段位置。
+* PiL 世界空间中正规化片段至光源向量。
+
+计算输出值CP。这是修正后的片段至光源向量，你要用它从阴影立方体贴图获取像素元。
+
+下列示例代码演示了如何正确计算 CP 向量：  
+
+```glsl
+// Working in World Coordinate System.
+vec3 = intersectMaxPointPlanes = (_BBoxMax - Pi) / PiL;
+vec3 = intersectMinPointPlanes = (_BBoxMin - Pi) / Pil;
+//Looking only for intersections in the forward direction of the ray.
+vec3 largestRagParams = max(intersectMaxPointPlanes, intersectMinPointPlanes);
+//Smallest value of the ray Parameters gives us the intersection.
+float dist = min(min(largestRayParams.x, largestRayParams.y), largestRayParams.z);
+//Find the positon of the intersection point.
+vec3 intersectPositonWS = pi + piL * dist;
+//Get the local corrected vector.
+CP = intersectPositionWS - _EnviCubeMapPos;
+```
+
+使用CP向量从立方体贴入获取像元素元。像原素元的alpha通道提供关于必须向片段应用多少光线或阴影的信息：
+
+```glsl
+float shadow = texCUBE(cubemap, CP).a;
+```
+
+此技巧可以在场景中生成有效的阴影，但您可以通过两个额外的步骤来提高阴影的质量：  
+
+* 阴影的背面
+* 平滑
+
+#### 阴影中的背面
+
+立方体贴图阴影技巧不使用深度信息来应用阴影。这意味着某些面在应当要处于阴影中时会得到错误的照明。  
+
+只有表面朝向光源相反的方向时才会出现此问题。要解决此问题，可检查法线向量与片段至光源向量 PiL 之间的角度。如果角度数超出 -90 到 90 度范围，该表面处于阴影中。  
+
+下列代码片段进行此检查：  
+
+```
+if(dot(PiL,N)<0)
+	shadow = 0.0;
+```
+
+以上代码导致每个三角形从亮硬切换到至暗。若要获得平滑过渡，可使用下列公式：
+
+shadow *= max(dot(PiL, N) , 0.0);
+
+其中：
+
+* shadow是从阴影立方体贴图获取的alpha值。
+* PiL是世界空间中的正规化片段至光源向量。
+
+**平滑**
+
+此阴影技巧可以在您的场景中提供逼真的软阴影。  
+
+1. 生成纹理映射，并为立方体贴图纹理设置三线性过滤。
+2. 测量片段至交叉点向量的长度。
+3. 将该长度乘以一个系数。
+
+该系数是环境中最大距离与纹理映射层级数的正规化子。  您可以使用包围区域和纹理映射层级数自动计算它。您必须按照自己的场景自定义该系数。这可让您调整相关的设置，使它适合您的环境，从而改善视觉质量。例如，冰穴项目中使用的系数为 0.08。  
+
+您可以重新利用为局部修正所进行的计算的结果。重新利用代码片段中局部修正的 dist，作为从片段位置到片段至光源向量与包围盒交叉点的线段的长度：  
+
+```glsl
+float texLod = dist;
+```
+
+将texLod乘以距离系数：
+
+texLod *= distanceCoeficient;
+
+要实施柔和度，使用Cg函数texCUBElod()或GLSL函数textureLod()获取纹理的正确纹理映射层级。
+
+构造一个vec4，其中XYZ代表方向矢量，W分量则代表LOD。
+
+```glsl
+CP.w = texLod;
+shadow = texCUBElod(cubemap,CP).a;
+```
+
+#### 组合立方体贴图阴影与阴影贴图
+
+要利用动态内容完善阴影，必须组合使用立方体贴图阴影和传统的阴影贴图技巧。这需要额外的工作，但值得一试，因为您只需要将动态对象渲染到阴影贴图。  
+
+#### 立方体贴图阴影技巧的结果
+
+使用传统的技巧时，渲染阴影的成本比较高，因为它涉及从每个阴影投射光源的视角渲染整个场景。此处介绍的立方体贴图阴影技巧可以提高性能，因为它大部分是预烘焙的。  
+
+此技巧还独立于输出分辨率。它在 1080p、 720p 和其他分辨率上产生相同的视觉质量。  
+
+柔和度过滤是在硬件中计算的，所以平滑几乎没有计算上的成本。阴影越平滑，此技巧的效用越佳。这是因为较小的纹理映射层级数产生的数据要少于传统的阴影贴图技巧。传统的技巧需要较大的内核才能使阴影足够平滑，从而在视觉上更吸引人。这需要很高的内存带宽，所以会降低性能。  
+
+通过立方体贴图阴影技巧获得的质量可能会超越您的预期。它提供逼真的柔和度，阴影稳定，没有闪光的边缘。 由于光栅化和锯齿效应，使用传统的阴影贴图技巧时可能会看到闪光的边缘。不过，所有抗锯齿算法都不能完全修复此问题。  
+
+立方体贴图阴影技巧没有闪光问题。边缘稳定，即使您使用的分辨率远低于渲染目标所用的分辨率。您可以使用比输出低四倍的分辨率，而且没有失真或多余的闪光。使用低四倍的分辨率也可节省内存带宽，因而能提升性能。  
+
+此技巧可用于市面上支持着色器的任何设备，比如支持 OpenGL ES 2.0 或更高版本的设备。如果您已清楚使用基于局部立方体贴图技术的反射的位置和时机，您就可以轻松在实施中应用此阴影技巧。  
+
+该技巧无法用于场景中的一切对象。例如，动态对象从立方体贴图接收阴影，但它们无法预烘焙到立方体贴图纹理。对于动态对象，请使用阴影贴图来生成阴影，并与立方体贴图阴影技巧搭配使用。  
+
+### 基于局部立方体贴图的折射  
+
+您可以使用局部立方体贴图实施高质量折射，也可以在运行时将它们与反射组合。  
+
+#### 关于折射
+
+游戏开发人员经常寻觅高效的方法，在游戏中实施夺人眼球的视觉特效。以移动平台为目标开发时，这尤为重要，因为您必须仔细权衡各种资源，从而获得最高的性能。  
+
+折射是光波因为它所穿透的介质的变化而改变方向。如果希望提高半透明几何体的逼真度，折射是您要考虑的一个重要效果。  
+
+折射率决定了光线进入一种物质时弯折或折射的程度。折射定义为光线从折射率为 n1 的一种介质穿入折射率为 n2 的另一介质时的弯折。  
+
+您可以使用斯涅耳定律计算折射率和入射与折射角度正弦之间的关系。  
+
+#### 折射实施  
+
+开发人员自开始渲染反射时就已尝试渲染折射，因为任何半透明表面上都会同时发生这些过程。渲染反射的技巧有多种，但渲染折射的却不多。  
+
+运行时实施折射的现有方法根据具体的折射类型而不同。大部分技巧是运行时将折射对象后的场景渲染到纹理，然后在第二通道中应用纹理失真，从而获得折射的外观。根据纹理失真，您可以使用这种方法来渲染不同的折射效果，如水、 热雾、玻璃和其他效果。  
+
+其中一些技巧可以获得不错的结果，但纹理失真不是以物理学为基础，因此结果不一定正确。例如，如果您从折射摄像机的视角渲染纹理，可能会有一些区域不直接对该摄像机可见，但在基于物理的折射中可见。  
+
+使用渲染至纹理方法的主要局限在于质量。当摄像机移动时，经常会出现像素闪光或像素不稳定的现象。  
+
+#### 关于基于局部立方体贴图的折射  
+
+局部立方体贴图是一种优良的反射渲染技巧，开发人员自它们可用时便开始将静态立方体贴图同时用于实施反射和折射。  
+
+不过，如果您在局部环境中使用静态立方体贴图实施反射或折射，倘若不应用局部修正，结果就会不正确。  
+
+此处描述的技巧中，通过应用局部修正来确保正确的结果。此技巧已经过高度优化。它对于移动设备特别有用， 因为运行时资源有限，所以必须仔细均衡。  
+
+#### 准备立方体贴图
+
+你必须准备立方体贴图，以便在折射实施中使用：
+
+若要准备立方体贴图，请执行以下操作：
+
+1. 将摄像机置于折射几何体的中心。
+2. 隐藏折射对象，并将六个方向上周围静态环境渲染到立方体贴图。您可以将这一立方体贴图同时用于实施折射和反射。
+3. 将围绕折射对象的环境烘焙到静态立方体贴图。  
+4. 确定折射向量的方向，再找到它与局部环境包围盒的相交处。  
+5. 按照与 基于局部立方体贴图的动态软阴影中的相同方式，应用局部修正。
+6. 生成从立方体贴图生成的点到交叉点的一个新向量。使用这一最终向量从立方体贴图获取像素元，渲染折射对象背后的内容。
+
+我们不使用折射向量 Rrf 从立方体贴图获取像素元，而是找到折射向量与包围盒相交的点 P，再构建一个从立方体贴图中心 C 到交叉点 P 的新向量 R'rf。使用这一新向量从立方体贴图获取纹理颜色。  
+
+float eta = n2 / n1;
+
+float3 Rrf = refract(D, N ,eta);
+
+找到交叉点P
+
+找到向量R‘rf = CP;
+
+float4 col =texCube(Cubemap, R'rf);
+
+
+
+此技巧生成的折射在物理学上是准确的，因为折射向量方向是通过斯涅耳定律计算的。  
+
+您还可以在着色器中使用一个内置函数，找到严格遵循斯涅耳定律的折射向量 R：  
+
+```glsl
+R = refract(I,N,eta);
+```
+
+其中：
+
+* I是正规视角或入射向量。
+* N是正规化法线向量。
+* eta是折射率的比率n1/n2
+
+#### 着色器实施
+
+在获取与局部修正折射方向对应的像素元时，您可能要将折射颜色与其他光照组合。例如，与折射同时发生的反射。  
+
+要将折射颜色与其他光照组合，您必须传递一个额外的视角向量到片段着色器，再向它应用局部修正。使用其结果从同一立方体贴图获取折射颜色。  
+
+下列代码片段演示了如何组合反射和折射来生成最终的输出颜色：  
+
+```glsl
+// Environment reflections
+float3 newReflDirWS = Local Correct(input.reflDirWS, _BBoxMin,_BBoxMax,input.posWorld,_EnviCubeMapPos);
+float4 staticReflColor = texCUBE(_EnviCubeMap, newReflDirWS);
+// Environment refractions
+float3 newRefractColor = texCUBE(_EnviCubeMap, newRefractDirWS);
+//Combined feflections and refractions
+float4 combinedReflRefract = lerp(staticReflColor, staticRefractColor,_ReflAmount);
+
+float4 finalColor = _AmbientColor + combinedRefract;
+```
+
+系数 _ReflAmount 作为统一变量传递到片段着色器。利用此系数调整反射与折射占比之间的均衡。您可以手动调整 _ReflAmount 获得自己想要的视觉效果。  
+
+您可以在以下反射博客中找到 LocalCorrect 函数的实施：  
+
+http://community.arm.com/groups/arm-mali-graphics/blog/2014/08/07/reflections-based-on-local-cubemaps.  
+
+当折射几何体是中空物体时，折射和反射会在正面和背面同时发生。  
+
+### 脏镜头光晕效果  
+
+您可以使用脏镜头光晕效果来实现戏剧感。它通常与镜头光晕效果一起使用。  
+
+您可以通过非常轻松和简单的方式来实施脏镜头光晕效果，这种方式很适合移动设备。  
+
+在冰穴演示中，脏镜头效果是在一个功能最少的着色器中实施的，该着色器在场景基础上渲染一个强度可变的全屏四边形。四边形的强度通过一个脚本传递。  
+
+此着色器在所有透明几何体都渲染后的最终阶段，使用附加的 alpha 混合渲染该四边形。  
+
+#### 着色器实施
+
+下列子着色器标记指示全屏四边形在所有不透明几何体和九个其他透明对象之后渲染：  
+
+```
+Tags {"Queue" = "Transparent + 10"}
+```
+
+着色器使用一下命令停用深度缓冲区写入。这可以防止四边形遮挡它后面的几何体：
+
+```
+ZWrite Off
+```
+
+在混合阶段，片段着色器的输出与帧缓冲区中已有像素颜色混合  
+
+着色器指定了附加混合类型Blend One One。在这一混合类型中，来源和目标因子都是float4(1.0, 1.0, 1.0, 1.0)。
+
+这种混合类型通常用于粒子系统来表示火焰等透明并且发光的效果。
+
+着色器停用了剔除和ZTest，以确保始终渲染脏镜头光晕效果。
+
+四边形的顶点在视口坐标中定义，所以顶点着色器中不会发生顶点变换。
+
+片段着色器仅从纹理获取像素元，再应用与效果强度成比例的因子。  
+
+#### 脚本实施
+
+一个简单脚本实施全屏四边形，并且计算传递到片段着色器的强度因子。
+
+下列函数创建了start函数中的四边形网格：
+
+```c#
+void CreateQuadMesh()
+{
+    Mesh mesh = GetComponent<MeshFilter>().mesh;
+    mesh.Clear();
+    mesh.vertices = new Vector3[]{new Vector3(-1,-1,0), new vector3(1,-1,0), new vector3(1,1,0), new Vector3(-1,1,0)};
+    mesh.uv = new Vector2[] {new vector2(0,0),new Vector2(1,0), new Vector(1,1),new Vector2(0,1)};
+    mesh.triangles = new int[]{0,2,1,0,3,2};
+    mesh.RecalcalculateNormals();
+    //Increase bounds to avoid frustum clopping.
+    bigBounds.SetMinMax(new Vector3(-100,-100,-100), new Vector3(100,100,100));
+    mesh.bounds = bigBounds;
+}
+```
+
+创建该网格时，其边界将递增，以确保视锥体绝不会被裁剪。根据您场景的尺寸来设置边界的大小。  
+
+该脚本计算强度因子，并将它传递到片段着色器。这基于摄像机至太阳向量和摄像机前向向量的相对朝向。当摄像机正对太阳时，该效果的强度达到最大值。  
+
+下列代码演示了强度因子的计算：  
+
+```c#
+Vector3 cameraSunVec = sun.transform.position - Camera.main.transform.position;
+cameraSunVec.normalize();
+float dotProd = Vector3.Dot(Cameta.main.transform.forward, cameraSunVec);
+float intensityFactor = Mathf.Clamp(dotProd, 0.0f, 1.0f);
+```
+
+### 脏镜头着色器代码
+
+这是DirtyLensEffect.shader的代码：
+
+```glsl
+half3 normalInWorld = half3(0.0,0.0,0.0);
+half3 = bumpNormal = UnpackNormal(tex2D(_BumpMapGlobal, input.tc));
+half3x3 local2WorldTranspose = half3x3(input.tangentWorld, input.bitangentWorld, input.normalInWorld);
+normalInWorld = normalize(mul(bumpNormal, local2WorldTranspose));
+normalInWorld = normalInWorld*0.5 + 0.5;
+return half4(normalInWorld, 1.0);
+```
+
+### 光柱
+
+光柱模拟云隙光、大气散射或阴影的效果。它们用于为场景增加深度和真实感。  
+
+光柱的基础是一个截断的圆锥体。该圆锥体跟随光线的方向，其方式可确保圆锥体的上部始终固定。  
+
+* 显示光柱的基本几何体是具有顶部和底部两个截面的圆柱体。  
+* 显示其下截面已经扩展，根据您定义的角度 θ 获得一个被截断的圆锥几何体。  
+* 显示其上截面保持固定，下截面按照太阳光线的方向水平移位。  
+
+一个脚本利用太阳的位置计算下列值：  
+
+* 圆锥体下截面扩展的幅度，它基于作为输入值的角度 θ。  
+* 截面移位的方向和幅度。  
+
+顶点着色器基于此数据应用变换。在光柱局部坐标中，该变换应用到圆柱形几何体的原始顶点。  
+
+在渲染光柱时，请避免渲染显露出其几何体的任何硬边缘。要达到这一目的，您可以使用纹理遮罩来平滑淡化其顶部和底部。  
+
+#### 淡化圆锥体边缘
+
+在与截面平行的平面中，根据摄像机与顶点相对朝向，淡化光柱强度。  
+
+在顶点着色器中，将摄像机位置投影到截面上。  
+
+构建一个从截面中心到投影的新向量，然后将它正规化。  
+
+计算此向量与顶点法线的点积，然后将结果提升为幂指数。  
+
+将结果作为变量传递到片段着色器。这用于调节光柱的强度。  
+
+顶点着色器在局部坐标系统 (LCS) 中进行这些计算。  
+
+以下代码显示顶点着色器：  
+
+```glsl
+//Project camera positon onto cross section
+float3 axisY = float3(0,1,0);
+float dotWithAxis = dot(camPosInLCS, axisY);
+float3 projOnCrossSection = camPosInLCS - (axisY * dotWithYAxis);
+projOnCrossSection = normalize(projOnCrossSection);
+
+//Dot product to fade the geometry at the edge of the cross section
+float dotProd = abs(dot(projOnCrossSection, input.normal));
+output.overallIntensity = pow(dotProd, _FadingEdgePower) * _CurrLightShaftIntensity;
+```
+
+您可以通过系数 _FadingEdgePower 细调光柱边缘的淡化。  
+
+脚本传递系数 _CurrLightShaftIntensity。这使得光柱在摄像机靠近它时淡出。  
+
+下列代码演示了一个添加至光柱的最终润饰，它通过脚本缓慢向下滚动纹理：  
+
+```c#
+void Update()
+{
+	float localOffset = (Time.time * speed) + offset;
+	localOffset = localOffset % 1.0f;
+	GetComponent<Renderer>().material.SetTextureOffset("_MainTex", new Vector2(0,localOffset));
+}
+```
+
+片段着色器获取光束和遮罩纹理，然后使用强度因子将它们组合  :
+
+```glsl
+float4 frag(vertexOutput input):COLOR
+{
+	float4 textureColor = tex2D(_MainTex, input.tex.xy);
+	float textureMask = tex2D(_MaskTex, input.tex.zw).a;
+	textureColor.rgb = clamp(textureColor.a, 0, 1);
+	return textureColor;
+}
+```
+
+光柱几何体继所有不透明几何体之后，在透明队列中渲染  .
+
+它使用附加混合将片段颜色与帧缓冲区中的对应像素组合。  
+
+该着色器也禁用剔除和深度缓冲区写入，以便不遮挡其他对象。  
+
+此通道的设置为：  
+
+```glsl
+Blend One One
+Cull Off
+ZWrite Off
+```
+
+### 雾化效果
+
+雾化效果可为场景增添气氛，你不需要通过高级实施来生成雾化，简单的雾化效果即可奏效。
+
+#### 关于雾化效果
+
+在现实世界中，您越往远看，被淡化的颜色就越多。不一定需要雾天才能看到这种效果，阳光灿烂时您也可以看到，特别是观赏高山风景时。  
+
+这在现实生活中特别常见，所以在游戏中添加此效果可以为场景增添真实感。  
+
+此部分介绍两种版本的雾化效果：  
+
+* 过程线性雾
+* 基于粒子的雾
+
+您可以同时应用这两种效果。冰穴演示中同时使用了这两种技巧。  
+
+#### 过程线性雾
+
+确保对象距离远，其颜色更多的淡化为定义的雾颜色。要在片段着色器中实现这一目标，您可以在片段颜色和雾颜色之间使用简单线性插值。  
+
+下方示例代码演示了如何基于和摄像机的距离在顶点着色器中计算雾颜色。此颜色作为变量传递到片段着色器。
+
+```glsl
+output.fogColor = _FogColor * clamp(vertexDistance * _FogDistanceScale, 0.0,1.0);
+```
+
+  其中：
+
+* vertexDistance 是顶点至摄像机距离。  
+* FogDistanceScale 是作为统一变量传递至着色器的因子。  
+* _FogColor 是您定义的基准雾颜色，作为统一变量传递。  
+
+在片段着色器中，插值的 input.fogColor 与片段颜色 output.Color 组合。  
+
+```glsl
+outputColor = lerp(outputColor, input.fogColor.rgb, input.fogColor.a);
+```
+
+设法将尽可能多的效果合并到一个着色器中。但是，务必要检查性能，因为超出缓存时性能可能会降低。您可能必须将着色器拆分为两个或更多通道。  
+
+您可以在顶点着色器或片段着色器中进行雾颜色计算。在片段着色器中计算更加准确，但需要更多计算性能，因为它是针对每个片段计算的。  
+
+顶点着色器计算精度较低，但性能也较高，因为它仅针对每一顶点计算一次。  
+
+#### 具有高度的线性雾
+
+雾在场景中均匀地应用。您可以按照高度更改密度，让它更具真实感。  
+
+提高低处的雾气浓度，降低高处的雾气浓度。您可以显示高度值，以进行手动调整。  
+
+#### 非均匀雾  
+
+雾不一定是均匀的。您可以引入一些噪点，让雾的视觉效果更加引人。  
+
+您可以应用噪点纹理创建非均匀雾。  
+
+若要获得更加复杂的效果，还可以应用多个噪点纹理，让它们以不同的速度滑动。例如，距离较远的噪点纹理的滑动速度慢于离摄像机较近的纹理。  
+
+您可以在一个着色器中的一个通道中应用多个纹理，只需根据距离混合噪点纹理。  
+
+#### 预烘焙雾  
+
+如果知道摄像机不会靠近它们，您可以将雾预烘焙到纹理中。这可以降低所需的计算功率。  
+
+#### 使用粒子的体积雾  
+
+您可以使用粒子模拟体积雾。这可以产生高质量的结果。  
+
+将粒子数量保持到最小值。粒子会增加过度绘制，因为每个片段要执行更多的着色器。尝试使用较大的粒子，而不要创建更多个粒子。  
+
+在冰穴演示中，一次使用了最多 15 个粒子。  
+
+**几何体取代公告板渲染  ：**将粒子系统的渲染模式设置为网格，不要使用公告板。这是因为，要获得体积效果，各个粒子必须随机旋转。  
+
+**角度淡化效果  **：按照粒子相对于摄像机位置的朝向，淡入和淡出各个粒子。如果您不淡入和淡出粒子，粒子就会显现锐利边缘。下列示例代码演示了执行淡化的顶点着色器：  
+
+```glsl
+half4 vertexInWorld = mul(_Object2World, input.vertex);
+half3 normalInWorld = (mul(half4(input.normal, 0.0)_World2Object).xyz);
+const half3 = viewDirInWorld = normalize(vertexInWorld - WorldSpaceCameraPos);
+output.visibility = abs(dot(-normalInWorld, viewDirInworld));
+output.visibility *= output.visibility; // instead of power of 2
+```
+
+可变参数 output.visibility 在粒子多边形上插值。在片段着色器中读取此值，再应用一定数量的透明度。下列代码演示了它的实现方式  
+
+```glsl
+half4 diffuseTex = _Color * tex2D(_MainTex, half2(input.texCoord));
+diffuseTex *= input.visibility;
+return diffuseTex;
+```
+
+**渲染粒子**
+
+要渲染粒子，可使用下列步骤：
+
+1. 将粒子渲染为帧内最后的源于。 Tags { "Queue" = "Transparent + 10"}本例中出现了 +10，因为冰穴演示中在粒子前面渲染了 9 个其他透明对象。  
+2. 设置适当的混合模式。在着色器通道的开头，添加下面这一行：Blend SrcAlpha One  
+3. 禁用写入到 z 缓冲区。  添加下面这一行：  ZWrite Off  
+
+#### 高光溢出
+
+高光溢出用于再现真实摄像机在明亮环境中拍摄图片时出现的效果。高光溢出模拟从明亮区域边界延伸的光线条纹，创造出明亮光线压倒摄像机的假象。  
+
+高光溢出效果发生于真实镜头，因为它们无法完美对焦。当光线穿过摄像机的光圈时，一些光线出现衍射，在图像周围创造出一个明亮的圆盘。此效果在大部分情形中通常不明显，但在强光照明下可见。  
+
+#### 实施高光溢出  
+
+高光溢出效果通常作为后处理效果实施。使用这种方式生成效果可能会占用大量的计算功率，因此不适合运用到移动游戏。如果您的游戏使用大量类似于冰穴演示中的复杂效果，这一点显得尤其突出。  
+
+一种替代方法是使用简单平面。将这一平面放在摄像机和光源之间。该平面的朝向必须是其法线指向摄像机应在其中移动的场景部分。  
+
+要以这样的方式创建高光溢出效果，可将一个平面放置在您要产生高光溢出效果的位置上。利用一个因子调节效果的强度，该因子基于视角向量与平面法线和光源的对齐。冰穴演示中实施了这种方法。  
+
+#### 创建高光溢出调节因子脚本  
+
+对齐因子可以使用脚本进行计算。此因子基于摄像机查看该效果的角度改变高光溢出效果。  
+
+例如，下列脚本计算了平面所附着的对齐因子：  
+
+```c#
+// Light-plane
+normal-camera alignmentVector3 planeToCamVec = Camera.main.transform.positon - gameObject.transform.position;
+planeToCamVec.Normalize();
+Vector3 sunLightToPlainVec = origPlainPos - sunLight.transform.position;
+sunLightToPlainVec.Normalize();
+float sunLightPlainCameraAlignment = Vector3.Dot(plainToCamVec, sunLigntToPlainVec);
+sunLightPlainCameraAlignment = Mathf.Clamp(sunLightPlainCameraAlignment, 0.0f, 1.0f);
+```
+
+对齐因子 sunLightPlaneCameraAlignment传递这着色器，以调节所渲染的颜色的强度。
+
+#### 顶点着色器
+
+顶点着色器接收 sunLightPlainCameraAlignment 因子，并使用它调节所渲染的高光溢出颜色的强度。  
+
+顶点着色器应用 MVP 矩阵，将纹理坐标传递到片段着色器，再输出顶点坐标。  
+
+下列代码演示了它的实现方式：  
+
+```glsl
+vertexOutput vert(vertexInput input)
+{
+	vertexOutput output;
+	output.tex = input.texcoord;
+	output.pos = mul(UNITY_MATRIX_MVP, input.vertex);
+	return output;
+}
+```
+
+#### 片段着色器
+
+片段着色器获取纹理颜色并使用 CurrBloomColor 浅色进行递增，后者作为统一变量进行传递。对齐因子先调节颜色，然后再使用。  
+
+下列代码演示了此流程的执行方式：  
+
+```
+half4 frag(vertexOutput input) : COLOR
+{
+	half4 textureColor = tex2D(_MainTex, input.tex.xy);
+	textureColor += textureColor * _CurrBloomColor;
+	return textureColor * _AligmentFactor;
+}
+```
+
+高光溢出平面继所有不透明几何体之后，在透明队列中渲染。在着色器中，使用下列队列标记设置渲染顺序：  
+
+```glsl
+Tags {"Queue" = "Transparent" + 1}
+```
+
+高光溢出平面利用附加的一对一混合来应用，将片段颜色和已存储在帧缓冲区中的对应像素相组合。该着色器也使用指令 ZWrite Off 禁用对深度缓冲区的写入，使得现有的对象不会被遮挡。  
+
+#### 修正高光溢出效果
+
+使用平面产生高光溢出效果非常简单，也适合移动设备。然而，当产生高光溢出的光源和摄像机之间存在不透明对象时，它就无法产生预期的结果。您可以使用遮挡贴图进行修正。  
+
+不透明对象后方的高光溢出效果外观出错的原因是该效果是在透明队列中渲染的。 因此，混合发生于高光溢出平面前面的任何对象上。  
+
+为防止出现这些错误，您可以修改计算对齐因子的脚本，使它处理一个额外的遮挡贴图。这一遮挡贴图描述了摄像机通常不当应用高光溢出效果的区域。这些冲突区域分配到的遮挡贴图值为零。此因子与对齐因子结合， 将这些位置上该因子的强度设为零。此更改将高光溢出设为零，使它不再渲染必须遮挡它的对象。下列代码实施了这一调整：  
+
+```glsl
+IntensityFactor = alignmentFactor * occlusionMapFactor
+```
+
+由于冰穴演示摄像机可以在三个维度上自由移动，因此使用了三个灰度贴图，各自覆盖不同的高度。黑色表示零，所以遮挡贴图因子乘以对齐因子使得最终强度为零，高光溢出被遮挡。白色表示一，所以强度等于对齐因子，高光溢出不被遮挡  .
+
+#### 遮挡贴图间插值  
+
+在冰穴演示中，脚本计算每一帧中摄像机位置在 2D 洞穴贴图上的 XZ 投影，并将结果正规化到零和一之间。
+
+如果摄像机高度低于Hmin 或高于Hmax，则使用正规化后的坐标从单一贴图获取颜色值。如果摄像机高度在 Hmin和 Hmax 之间，则从两个贴图获取颜色并进行插值。
+
+此插值可以为不同高度上的效果创造平滑的过渡。
+
+冰穴演示使用 GetPixelBilinear() 函数从贴图获取颜色。此函数利用下列代码返回滤波颜色值：  
+
+```c#
+float groundOcclusionFactor = groundOccusionMap.GetPixelBilinear(camPosXZNormalized.x, camPosXZNormalized.y)).r;
+
+```
+
+使用高光溢出遮挡贴图可以防止在遮挡的不透明对象上混合高光溢出。下图显示了产生的效果。当摄像机进入和离开时，遮挡的黑色在不透明柱子的后方，从而防止出现不正确的高光溢出。  
+
+### 冰墙效果  
+
+在冰穴演示中，洞穴的冰墙上使用了细微的反射效果。此效果很细微，但为场景增添额外的真实感和气氛。  
+
+#### 关于冰墙
+
+冰是一种难以复制的材质，因为光线会以不同的方式从它散射开来，具体取决于其表面的细微细节。反射可以是完全清晰的、完全失真的，或介于两者之间。冰穴演示显示了此效果，并包含一个带来更高真实感的视差效果。  
+
+#### 修改和组合法线贴图以影响反射  
+
+穴演示中的反射效果使用了正切空间法线贴图和计算而来的灰度虚构法线贴图。将这两种贴图与一些修改器组合，创造了演示中的效果  
+
+灰度虚构法线贴图是正切空间法线贴图的灰度版本。在冰穴演示中，灰度贴图中的大部分值处于 0.3-0.8 范围内。
+
+**为何使用正切空间法线贴图  ：**冰穴演示中使用了正切空间法线贴图，因为它们具有生成的灰度中的一小范围的值。这意味着，正切空间法线贴图在此渲染流程的后续阶段中发挥效果。  
+
+另一个选择是使用对象空间法线贴图。这些贴图显示与正切空间法线贴图相同的细节，但也同时显示光线照射到的位置。因此，生成的对象空间法线贴图灰度中的值范围太大，无法在渲染流程的后续阶段中发挥效果。  
+
+**向法线贴图的部件应用透明  **：灰度虚构法线贴图仅应用到没有雪的区域。为防止它们被应用到有雪的区域，可通过对相同的表面使用漫射纹理贴图来修改灰度虚构法线贴图。此修改可在雪出现于纹理贴图中的位置上增大灰度虚构法线贴图的alpha 分量。  
+
+#### 从不同的法线贴图创建反射  
+
+将调整了透明度的灰度虚构法线贴图和真正法线贴图相组合，可创造出冰穴演示中展示的反射效果。  
+
+调整了透明度的灰度虚构法线贴图 bumpFake 和真正法线贴图 bumpNorm 按比例组合。该组合使用了以下函数：  
+
+```glsl
+half4 bumpNormalFake = lerp(bumpNorm, bumpFake, amountFakeNormalMap);
+```
+
+此代码意味着，在洞穴的昏暗部分中，主要的反射组成来自于灰度虚构法线。在洞穴的有雪区域，该效果来自于对象空间法线。  
+
+要应用使用灰度虚构法线贴图的效果， 灰度必须转换为法线向量。要开始此流程，需要将法线向量的三个分量设置为和灰度值相等。在冰穴演示中，这表示分量向量介于(0.3, 0.3, 0.3) 到 (0.8, 0.8, 0.8) 范围内。因为所有分量都设置为相同的值，所有法线向量指向同一个方向。  
+
+着色器向法线分量应用一个变换。它使用的变换通常用于将 0-1 范围中的值变换为 -1 到 1 范围中的值。执行此更改的等式为，结果= 2 * 值 -1。此等式更改了法线向量，使得它们或者指向与之前相同的方向，或者指向相反的方向。例如，如果原先具有分量 (0.3, 0.3, 0.3)，则生成的法线为 (-0.4, -0.4, -0.4)。如果原先具有分量 (0.8,0.8, 0.8)，则生成的法线为 (0.6, 0.6, 0.6)。  
+
+变换到 -1 到 1 范围后，向量馈入到 reflect() 函数。此函数设计为使用正规化法线向量工作，但在这一情形中，非正规化法线被传递到该函数。下列代码演示了着色器内置函数 reflect() 的工作方式  :
+
+```
+R = reflect(I,N) = I - 2 * dot(I,N)*N
+```
+
+根据反射定律，将此函数与长度小于一的非正规化输入法线搭配使用时，会导致反射向量偏离法线的程度超过预期  
+
+当法线向量分量的值低于 0.5 时，反射向量将切换到相反的方向。此时，将读取立方体贴图中的另一个部分。这种在立方体贴图中不同部分间的切换，创造了在立方体贴图岩石部分反射的旁边反射立方体贴图中白色部分的不均匀点效果。由于灰度虚构法线贴图中导致在正向和负向法线之间切换的区域也是产生被反射向量最为失真的角度的区域，这创造了一种视觉引人的漩涡效果。  
+
+#### 向反射应用局部修  
+
+向反射向量应用局部修正可提高反射效果的真实感。如果没有此修正，反射就不会像现实中一样随着摄像机位置的变化而改变。对于摄像机侧向移动而言，这一点显得尤其突出。  
+
+## 过程天空盒  
+
+冰穴演示中使用一个时间系统来展示您可以通过局部立方体贴图实现的动态阴影效果。  
+
+#### 关于过程天空盒  
+
+要获得动态时间效果，需要组合下列元素：  
+
+* 过程性生成的太阳。  
+* 代表昼夜更替的一系列淡化天空盒背景立方体贴图。  
+* 天空盒云朵立方体贴图。  
+
+过程太阳和单独的云朵纹理也可创建计算成本低廉的子表面散射效果。  
+
+冰穴演示使用了视角方向从立方体贴图采样。这使得该演示可以避免渲染天空盒的一个半球。相反，它在洞穴的孔洞附近使用平面。  
+
+相较于渲染之后大体被其他几何体遮挡的半球， 这样做可以提升性能。  
+
+#### 管理一天中的时间
+
+此效果使用 C# 脚本管理一天中的时间的数学计算，以及昼夜更替动画。一个着色器而后组合太阳和天空贴图。您必须为该脚本指定下列值  ：
+
+* 淡化天空盒背景相位的数量。
+* 昼夜更替的最长时长。
+
+对于每一个帧，该脚本选择天空盒立方体贴图并将它们混合在一起。选定的天空盒被设置为着色器的纹理，它在渲染时将这些纹理混合在一起。  
+
+为设置纹理，冰穴演示使用了Unity 着色器全局功能。这样，您可以在一个位置设置纹理，而后供应用程序的所有着色器使用。下列代码对此进行了演示：  
+
+```c#
+Shader.SetGlobalTexture(ShaderCubemap1,_phasesCubemaps[idx1]);
+Shader.SetGlobalTexture(ShaderCubemap2,_phasesCubemaps[idx2]);
+Shader.SetGlobalTexture(ShaderAlpha,blendAlpha);
+Shader.SetGlobalVector(ShaderSunPosition, normalizedSunPosition);
+Shader.SetGlobalVector(ShaderSunParameters, _sunParameters);
+Shader.SetGlobalVector(ShaderSunColor, _sunColor);
+Shader.SetGlobalTexture(ShaderCloudsCubemap, _CloudsCubemap);
+```
+
+脚本代码中进行了如下设置：  
+
+* 插值了两个立方体贴图。值idx1和idx2根据消逝的时间计算。
+* blendAlpha因子，在着色器中用于混合两个立方体贴图。
+* 正规化太阳位置，用于渲染太阳球体。
+* 太阳的多个参数
+* 太阳的颜色
+* 云朵立方体贴图。ShaderCubemap1和ShaderCubemap2是包含唯一取样器名称的两个字符串，本例中为_SkyboxCubemap1 和 _SkyboxCubemap2。
+
+为了在着色器中访问这些纹理，您必须使用下列代码声明它们：  
+
+```glsl
+samplerCUBE _SkyboxCubemap1;
+samplerCUBE _SkyboxCubeMap3;
+```
+
+该脚本根据您指定的列表选择太阳颜色和环境颜色。它们针对每一个相位进行插值。
+
+太阳颜色传递到着色器，从而使用正确的颜色渲染太阳  .
+
+环境颜色用于动态设置 Unity 变量 RenderSettings.ambientSkyColor：  
+
+```
+RenderSetting.ambientSkyColor = _ambientColor;
+```
+
+设置此变量可使所有材质获得正确的环境颜色，同时也能让 Enlighten 在更新光照贴图时获得正确的环境颜色。  
+
+在冰穴演示中，此效果导致场景根据一天中所处的时段出现总体颜色的渐进变化。  
+
+#### 渲染太阳
+
+要渲染太阳，您必须在片段着色器中针对天空盒的每一像素检查它是否处于太阳圆周的内部。  
+
+为此，着色器必须计算所渲染像素的世界坐标中正规化太阳位置向量和正规化视角方向向量的点积。  
+
+通过 C# 脚本，将正规化太阳位置向量传递到着色器。  
+
+* 如果只大于指定的阈值，像素着色为太阳的颜色。
+* 如果值小于指定的阈值，像素着色为天空的颜色。  
+
+点积也可朝着太阳边缘创造出淡化效果：  
+
+```
+half _sunContribution = dot(viewDir, _SunPosition);
 ```
 
