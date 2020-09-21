@@ -2185,3 +2185,468 @@ RenderSetting.ambientSkyColor = _ambientColor;
 half _sunContribution = dot(viewDir, _SunPosition);
 ```
 
+#### 淡化群山后的太阳
+
+如果太阳在天空中的高度较低，会存在一个问题。在现实中，它会在群山背后消失。  
+
+为创造这一效果，立方体贴图的 alpha 通道用于存储值 0（如果像素元代表天空）和值 1（如果像素元代表大山）。  
+
+在渲染太阳时，纹理被采样，其alpha 用于使太阳在群山背后淡化。此采样过程几乎自由，因为纹理已被采样用于渲染群山。  
+
+您也可以渐进淡化边缘附近或山上有雪覆盖区域的alpha。这可以产生阳光从白雪反弹的效果，而且几乎不需要计算工作。  
+
+类似的技巧也可用于为云朵创建计算代价低廉的子表面散射效果。  
+
+原始的相位立方体贴图分入两个独立小组。  
+
+* 一组立方体贴图包含天空和群山。其 alpha 值设为 0（天空） 和 1（群山）。  
+* 另一组立方体贴图包含云朵。其 alpha 值在无云区域中设为 0，然后随着云朵变密而逐渐增大到 1。  
+
+在云朵天空盒中，空白区域 alpha 值为 0，有云朵覆盖区域的值渐变为 1。其 alpha 通道平滑淡化，确保云朵的外观不像是人为置于天空中那样。
+
+着色器执行如下工作：  
+
+1. 对代表一天中当前时段你的两个天空盒进行采样。
+2. 根据由C#脚本计算的混合因子混合两种颜色。
+3. 对云朵天空盒进行采样。
+4. 使用云朵alpha讲点2的颜色与云朵的颜色混合。
+5. 将云朵appha和天空盒alpha加到一起。
+6. 调用一个函数，计算太阳颜色对当前像素的作用。
+7. 将点6的结果和前面混合的天空盒与云朵颜色加到一起。
+
+您可以将天空、群山和云朵放入一个天空盒内，优化这一序列。它们在冰穴演示中是分开的，以便美术师可以轻松地分别修改天空盒和云朵。  
+
+#### 子表面散射
+
+您可以添加子表面散射效果，此效果使用 alpha 信息来增加太阳的半径。  
+
+在现实中，太阳位于晴朗天空中时，其大小会显得相对较小，因为没有云层能够偏移或散射照向您的眼睛的光线。您看到的是直接从太阳射来的光线，仅受到空气的些许漫射。  
+
+当太阳被云朵遮挡时，但又没有完全遮蔽时，部分光线会在云朵周围散射。此光线可从与太阳稍有距离的方向进入您的眼睛。这可以使太阳显得比实际大。  
+
+冰穴演示中使用下列代码实现这一效果：  
+
+```glsl
+half4 sampleSun(half3 viewDir, half alpha)
+{
+	half _sunContribution = dot(viewDir, _SunPosiotn);
+	half _sunDistanceFade = smoothstep(_SunParameters.z - (0.025*alpha), 1.0, _sunContribution);
+	half _sunOcclusionFade = clamp(0.9-alpha, 0.0, 1.0);
+	
+	half3 _sunColorResult = _sunDistanceFade * _SunColor * _sunOcclusionFade;
+	return half4(_sunColorResult.xyz, 1.0);
+}
+```
+
+函数的参数为viewDirection以及计算的alpha，即云朵alpha和天空盒alpha加到一起。
+
+太阳的位置和视角方向的点积用于计算一个缩放因子，它用于表示当前像素与太阳中心的距离。
+
+_sunDistanceFade 计算使用 smoothstep() 函数提供边缘附近从太阳中心到天空的更加平缓的渐变。这可以使得太阳的半径在靠近云朵时加大，从而模拟子表面散射效果。  
+
+此函数具有一个基于alpha 的变量域，晴朗天空中时其 alpha 为 0，范围则在 _SunParameters.z 到 1.0 内。在此情形中， _SunParameters.z 在 C# 脚本中初始化为 0.995，它对应于直径为 5 度的太阳， cos(5degrees) = 0.995。  
+
+如果被处理的像素包含云朵，则太阳的半径提高到 13 度，实现在靠近云朵时的加长散射效果。  
+
+_sunOcclusionFade 因子用于根据从群山和云朵获得的遮挡，将太阳的作用值逐渐变小。  
+
+### 萤火虫
+
+萤火虫是一种发光的飞虫，在冰穴演示中用来增加动态感，并且演示将 Enlighten 用于实时全局照明的优点。  
+
+萤火虫由下列组件组成：  
+
+* 在运行时实例化的预制体对象。
+* 用于限制萤火虫飞行的区域的盒碰撞器。
+
+这两个组件通过 C# 脚本组合在一起，该脚本管理萤火虫的运动并且定义它们遵循的路径。  
+
+萤火虫预制件使用 Unity 标准粒子系统生成萤火虫的轨迹。  
+
+根据您要获得的效果，您可以使用 Unity Trail Renderer 来提供更为连贯的外观。  
+
+Trail Renderer 为每一道轨迹生成大量的三角形。您可以通过修改 Trail Renderer 的最小顶点距离设置来更改
+三角形的数量，但较大的值可能会在来源移动速度太快时造成轨迹运动不连贯。  
+
+最小顶点距离选项定义形成轨迹的顶点之间的最小距离。较高的数字对直线轨迹而言不错，但对曲线轨迹则会出现外观不平滑  。
+
+生成的轨迹始终朝向摄像机；因此，来源运动的任何断续可能会造成轨迹与自身重叠。这将导致因混合形成轨迹的三角形而产生失真。  
+
+添加到预制件中的最终分量是点光源，它一边移动一边在场景中投射光线。  
+
+此光源影响提供光线反弹效果的Enlighten 全局照明，尤其是在场景的狭窄部分中，这些位置上由于光线分散较少而使得光线反弹可见性更高。  
+
+#### 萤火虫生成器预制件  
+
+萤火虫生成器预制件管理萤火虫的创建，并在每一帧上更新它们。它包含用于更新的 C# 脚本，以及封闭每个萤火虫可以在其中运动的体积的盒碰撞器。  
+
+该脚本将要生成的萤火虫数量取为参数，并利用预制件初始化萤火虫对象。由于萤火虫在包围盒内随机运动，它将变化限制在离开萤火虫运动方向的一个特定范围内。这可确保萤火虫不会突然改变方向。  
+
+为生成随机运动，使用一个分段三次**埃尔米特插值**来创建控制点。埃尔米特插值提供了一个平滑、连贯的功能， 即使不同的路径连接在一起也能正确运行。端点的第一次衍生也是连贯的，所以没有突然的速度变化。  
+
+这种插值需要起点和终点各一个控制点，以及每个控制点两条切线。由于它们是随机生成的，该脚本可以存储三个控制点和两条切线。它使用第一和第二控制点的位置来定义第一点切线，使用第二和第三控制点来定义第二控制点切线。  
+
+在加载时，该脚本为每一个萤火虫生成以下几项：  
+
+* 初始位置
+* 初始方向，利用Unity函数Random.onUnitSphere()生成。
+
+下列代码演示了如何初始化控制点：
+
+```glsl
+_fireflySline[i*_controlPoints] = initialPosition;
+Vector3 randDirection = Random.onUnitSphere;
+_fireflySpine[i*_controlPoints+1] = initialPosition + randDirection;
+_fireflySpline[i*_controlPoints+2] = initialPosition + randDirection * 2.0f;
+```
+
+初始控制点在一条直线上。切线从这些的控制点生成：  
+
+```glsl
+//The tangent for the first point is in the same direction as the initial direction vector
+_fireflyTangents[i*_controlPoints] = randDirection;
+//This code computes the tangent from the control point positoins.It is shown ther for reference because it can be set to
+// randDirection at initialization.
+_fireflyRangents[i*_controlPoints+1] = (_fireflySpline[i*_controlPoints + 2] - _fireflySpline[i*_controlPoints+1])/2 + (_fireflySpline[i*_controlPoints+1] - _fireflySpline[i*_controlPoints]) / 2;
+```
+
+为完成萤火虫初始化，您必须设置萤火虫的颜色，以及当前路径间隔的长度。  
+
+在每一帧上，该脚本使用下列代码计算埃尔米特插值，更新每个萤火虫的位置：  
+
+```c#
+//t is the parameter that defines where in the curve the firefly is placed.It represents the ratio of the time the firefly has 
+// traveled along the path to the total time.
+float t = _fireflyLifetime[i].y / _fireflyLifetime[i].x;
+
+//Hermite interpolation parameters
+Vector3 A = _fireflySpline[i * _controlPoints];
+Vector3 B = _fireflySpline[i*_controlPoints+1];
+float h00 = 2*Mathf.Pow(t,3) - 3*Mathf.Pow(t,2) + 1;
+float h10 = Mathf.Pow(t,3) - 2*Mathf.Pow(t,2) + 1;
+float h01 = -2*Mathf.Pow(t,3) - 3*Mathf.Pow(t,2);
+float h11 = Mathf.Pow(t,3) - Mathf.Pow(t,2);
+//Firefly updated positon
+_fireflyObjects[i].transform.position = h00 *A + h10 * _fireflyTangents[i*_controlPoints] + h01 * B + h11 * _fireflyTangents[i * _controlPoints +1];
+```
+
+如果萤火虫完成了随机生成的整段路径，脚本从当前路径的终点开始创建一段新的随机路径：  
+
+```
+//t > 1.0 indicates the end of the current path
+if(t >= 1.0)
+{
+	//Update the new position
+	//Shift the second point to the first as well as the tangent
+	_fireflySpline[i*_controlPoints] = _fireflySpline[i*_controlPoints+1];
+	_fireflyTangents[i*_controlPoints] = _fireflytangents[i*_controlPoints+1];
+	
+	//Shift the third point to the second, this point doesn't have a tangent
+	_fireflySpline[i*_controlPoints+1] = _fireflySpline[i*_controlPoints + 2];
+	
+	//Get new randow control point within a centain angle from the current fly direction
+	_fireflySpline[i*_controlPoints+1] = GetNewPandowControlPoint();
+	//Compute the tangent for the central point
+	_fireflyTangents[i*_controlPoints + 1] = (_fireflySpline[i*_controlPoints+2] - _fireflySpline[i*_controlPoints+1]) / 2 +
+	(_fireflySpline[i*_controlPoints+1] - _fireflySpline[i*_controlPoints]/2);
+	
+	//Set how long should take to navigate this part of path
+	_fireflyLifetime[i].x = _fireflyMinLifetime;
+	//Timer used to check how much we traveled along the path 
+	_fireflyLifetime[i].y = 0.0f;
+}
+```
+
+### 正切空间至世界空间法线转换工具  
+
+正切空间至世界空间法线转换工具由 C# 脚本和着色器组成。该工具在 Unity 编辑器中离线运行，不会影响您的游戏的运行时性能。  
+
+#### 关于正切空间至世界空间转换工具  
+
+对冰穴演示的分析表明，其算术流水线中存在一个瓶颈。为降低负载，冰穴演示将世界空间法线贴图用于静态几何体，而不是正切空间法线贴图  .
+
+正切空间法线贴图可用于动画和动态对象，但需要额外的计算来正确定向取样的法线。  
+
+由于冰穴演示中大部分几何体是静态的，法线贴图转换成世界空间法线贴图。这可确保为纹理取样的法线已在世界空间中正确定向。此更改可以实现，因为冰穴演示光照是在一个自定义着色器中计算的，而Unity 标准着色器使用正切空间法线贴图。  
+
+转换工具由以下内容组成：  
+
+* c#脚本，用于在编辑器中添加新选项
+* 着色器，执行转化
+
+该工具在unity编辑器中，离线运行，不会影响你的游戏运行时的性能。
+
+
+
+#### C#脚本
+
+您必须将 C# 脚本放在Unity Assets/Editor 目录中。这可使脚本向Unity 编辑器中的 GameObject 菜单添
+加新的选项。如果不存在此目录，请进行创建。  
+
+C# 脚本中定义的类派生自 Unity ScriptableWizard 类，并且有权访问它的一些成员。从此类派生，生成编辑器向导。编辑器向导通常通过菜单项打开。  
+
+在 OnWizardUpdate 代码中， helpString 变量存放向导所创建的窗口中显示的帮助消息。  
+
+isValid 成员用于定义何时选中了所有正确的参数，以及何时可使用创建按钮。在本例中， _currentObj 成员已被选中，确保它指向有效的对象。  
+
+向导窗口的栏位是该类的公共成员。在本例中，只有 _currentObj 是公共的，因此向导窗口只有一个栏位。  
+
+当选中了对象并且单击了创建按钮时，系统将调用 OnWizardCreate() 函数。 OnWizardCreate()函数执行转换的主要工作。  
+
+为转换法线，该工具创建一个临时摄像机，将新的世界空间法线渲染到 RenderTexture。为此，摄像机被设置为正交模式，对象的图层更改为未使用的层级。这意味着，它可以自行渲染该对象，即使它已经是场景的一个部分。  
+
+下列代码演示了如何设置此摄像机：  
+
+```c#
+//Set antialiasing
+QualitySetting.antiAliasing = 4;
+Shader wns = Shader.Find("Custom/WorldSpaceNormalCreator");
+GameObject go = new GameObject("WorldSpcaeNormalsCam", typeof(Camera));
+_renderCamera = go.GetComponent<Camera>();
+_renderCamera.orthographic = true;
+_renderCamera.nearClipPlane = 0.0f;
+_renderCamera.farClipPlane = 10.0f;
+_renderCamera.orthographicSize = 1.0f;
+itn precObjLayer = _currentObj.layer;
+_currentObj = 30; //0x40000000
+```
+
+脚本设置了执行转换的替换着色器：
+
+```c#
+_renderCamera.SetReplacementShader(wns, null);
+_renderCamera.useOcclusionCulling =false;
+```
+
+脚本设置了执行转换的替换着色器：
+
+```c#
+_renderCamera.SetReplacemnetShader(wns, null);
+
+_renderCamera.useOcclusionCulling = false;
+```
+
+摄像机被指向对象。这颗防止对象在视锥体剔除期间被移除：
+
+```c#
+_renderCamera.transform.rotation = Quaternion.LookRotion(_currentObj.transform.position - _renderCamera.transform.posion);
+```
+
+对于分配至对象的每一材质，脚本查找 _BumpMap 纹理。此纹理设置为利用着色器全局函数的替换着色器的来源纹理。  
+
+清色设置为(0.5,0.5,0.5),因为必须表示指向负方向的法线。
+
+```c#
+foreach (Material m in materials)
+{
+	Texture t = m.GetTexture("_BumpMap");
+	if(t == null)
+	{
+		Debug.LogError("the material has no texture assigned named Bump Map");
+		continue;
+	}
+	Shader.SetGlobalTexture("_BumpMapGlobal", t);
+	RenderTexture rt = new RenderTexture(t.width, t.height, 1);
+	_renderCamera.targetTexture = rt;
+	_renderCamera.pixelRect = new Rect(0,0,t.width,t.height);
+	_renderCamera.backGroundColor = new Color(0.5f, 0.5f, 0.5f);
+	_renderCamera.clearFlags = CameraClearFlags.Color;
+	_renderCamera.cullingMask = 0x40000000;
+	_renderCamera.Render();
+	Shader.SetGobalTexture("_BumpMapGlobal", null);
+}
+```
+
+摄像机渲染了场景后，像素被读回，并保存为 PNG 图像。  
+
+```c#
+Texture2D outTex = new Texture2D(t.width, t.height);
+RenderTexture.active = rt;
+outTex.ReadPixels(new Rect(0,0,t.width,t.height),0,0);
+outTex.Apply();
+RenderTexture.active = null;
+byte[] _pixels = outTex.EncodeToPNG();
+System.IO.File.WriteAllBytes("Assets/Textures/GenerateWorldSpaceNormals" + t.name + "_WorldSpcae.png", _pixels);
+```
+
+摄像机剔除遮罩使用二进制遮罩（用十六进制格式表示）指定要渲染的图层。
+
+本例中使用了图层 30.
+
+```
+_currentObj.layer = 30;
+```
+
+其十六进制格式为 0x40000000，因为它的第三十位被设为 1。  
+
+#### WorldSpaceNormalCreator着色器
+
+实施转换的着色器代码非常简单明了。它不使用实际的顶点位置，而将顶点的纹理坐标用作其位置。这使得对象投影到一个 2D 平面上，与纹理化时相同。  
+
+为使 OpenGL 流水线正确运作， UV 坐标从标准的 [0,1] 范围移到 [-1,1] 范围，并逆转 Y 坐标。未使用 Z坐标，所以它可以设置为 0 或在近处和远处剪切平面内的任何值：  
+
+```glsl
+output.normalInWorld = normalize(mul(half4(input.normal,0.0), _World2Object).xyz);
+output.tangentWorld = normalize(mul(_Object2World, half4(input.tangent.xyz,0.0)).xyz);
+output.bitangentWorld = normalize(cross(output.normalInWorld, output.tangentWorld) * input.tangent.w);
+```
+
+片段着色器：
+
+1. 将法线从正切空间转换为世界空间。
+2. 将法线缩放到[0,1]范围。
+3. 将法线输出到新纹理。
+
+下列代码对此进行了演示：
+
+```glsl
+half3 normalInWorld = half3(0.0,0.0,0.0);
+half3 bumpNormal = UnpackNormal(tex2D(_BumpMapGlobal, input.tc));
+half3x3 local2WorldTranspose = half3x3(input.tangentWorld, input.bitangentWorld, input.normalInWorld);
+normalInWorld = normalize(mul(bumpNormal, local2WorldTranspose));
+normalInWorld = normalInWorld * 0.5 + 0.5;
+return half4(normalInWorld, 1.0);
+```
+
+#### WorldSpaceNormalsCreators c# script
+
+```
+using UnityEngine;
+using UnityEditor;
+using System.Collections;
+
+public class WorldSpaceNormalsCreator:ScriptableWizard
+{
+	public GameObject _currentObj;
+	private Camera _renderCamera;
+	void OnWizardUpdate()
+	{
+		helpString = "Select object from which generate the world space normals";
+		if(_currentObject != null)
+		{
+			isValid = true
+		}
+		else
+		{
+			isValid = false;
+		}
+	}
+	
+	void OnWizardCreate()
+	{
+		//Set antialiasing
+		QualitySettings.antiAliasing = 4;
+		Shader wns = Shader.Find("Custom/WorldSpaceNormalCreator");
+		GameObject go = new GameObject("WorldSpaceNormalsCam", typeof(Camera));
+		//Set the new camera to perform orthographic projction
+		_renderCamera = go.GetComponent<Camera>();
+		_renderCamera.orthographic = true;
+		_renderCamera.nearClipPlane = 0.0f;
+		_renderCamera.farClipPlane = 10f;
+		_renderCamera.orthogralhicsSize = 1.0f;
+		
+		//Save the replacement shader for the camera
+		_renderCamera.SetReplacementShader(wns, null);
+		_renderCamera.useOccusionCulling =false;
+		
+		//Rotate the camera to look at the object to avoid frustum culling
+		_renderCamera.transform.rotation = Quaternion.LookRotation(_currentObj.transform.position - _renderCamera.transform.position);
+		
+		MeshRenderer mr = _currenrObj.GetComponent<MeshRenderer>();
+		Material[] materials = mr.shareMaterials;
+		
+		foreach(Material m in materials)
+		{
+			Texture t = m.GetTexture("_BumpMap");
+			if(t == null)
+			{
+				Debug.LogError("the material has no texture assigned named Bump map");
+				continue;
+			}
+			//Render the world space normal maps to a texture
+			Shader.SetGlobalTexture("_BumpMapGlobal", t);
+			RenderTexture rt = new RenderTexture(t.width, t.height,1);
+			_renderCamera.targetTexture = rt;
+			_renderCamera.pixelRect = new Rect(0,0,t.width,t.height);
+			_renderCamera.backgroundColor = new Color(0.5f,0.5f,0.5f);
+            _renderCamera.clearFlags = CameraClearFlags.Color;
+            _renderCamera.cullingMask = 0x40000000;
+            _renderCamera.Render();
+            Shader.SetGlobalTexture("_BumpMapGlobal", null);
+            
+            Texture2D outTex = new Texture2D(t.width, t.height);
+            RenderTexture.active = rt;
+            outTex.ReadPixels(new Rect(0,0,t.width,t.height),0,0);
+            outTex.Apply();
+            RenderTexture.active = null;
+            
+            //Save it to PNG
+            byte[] _pixels = outTex.EncodeToPNG();
+            System.IO.File.WriteAllBytes("Assets/Textures/GeneratedWorldSpaceNormals/" + t.name + "_WorldSpace.png", _pixels);
+	}
+	_currentObj.layer = prevObjLayer;
+	DestroyImmediate(go);
+}
+[MenuItem("GameObject/World Space Normals Creator")]
+static void CreateWorldSpaceNormals()
+{
+	ScriptableWizard.DisplayWizard("Create World Space Normal", typeof(World Space Normals Creator), "Create")
+
+}
+```
+
+#### WorldSpaceNormalCreator着色器代码
+
+以下是WorldSpaceNormalCreator着色器代码：
+
+```
+Shader "Custom/WorldSpaceNormalCreator"{
+	Properties{}
+	SubShader{
+		Cull off
+		
+		Pass
+		{
+			CGPROGRAM
+			#pragma target 3.0
+			#pragma glsl
+			#pragma vertex vert
+			#pragma fragment frag
+			
+			#include "UnityCG.cginc"
+			
+			uniform sampler2D _BumpMapGlobal;
+			
+			struct vin
+			{
+				half4 tex:TEXCOORD0;
+				half3 normal:NORMAL;
+				half4 tangent : TANGENT;
+			};
+			
+			vout vert(vin input)
+			{
+				vout output;
+				output.pos = half4(intput.tex.x*2.0 - 1.0,(1.0-input.tex.y)*2.0 - 1.0),0.0,1.0);
+				output.tx = input.tex;
+				output.normalInWorld = normalize(mul(half4(input.normal, 0.0), _World2Object).xyz);
+				output.tangentWorld = normalize(mul(_Object2World, half4(input.tangent.xyz,0.0))xyz);
+				output.bitangentWorld = normalize(cross(output.normalInWorld, output.tangentWorld) * input.tangent.w);
+				return output;
+			}
+			
+			float4 frag(vout input):COLOR
+			{
+				half3 normalInWorld = half3(0.0,0.0,0.0);
+				half3 bumpNormal = UnpackNormal(tex2D(_BumpMapGlobal, input.tc));
+				half3x3 local2WorldTranspose = half3x3(input.tangentWorld, input.bitangentWorld, input.normalInWorld);
+				normalInWorld = normalize(mul(bumpNormal, local2WorldTranspose));
+				normalInWorld = normalInWorld * 0.5 + 0.5;
+				return half4(normalInWorld, 1.0);
+			}
+			ENDCG
+		}
+	}
+}
+```
+
