@@ -68,20 +68,20 @@ Func是至少有一个返回值，参数可有可无。
 private delegate string Say();
 public static string SayHello()
 {
-	return "Hello";
+    return "Hello";
 }
-public static string SayHelloParam(str)
+public static string SayHelloParam(string str)
 {
-	return "Hello" + str;
+    return "Hello " + str;
 }
 static void Main(string[] args)
 {
-	Say say = SayHello();
+    Say say = SayHello;
     Func<string> say1 = SayHello;
     Func<string, string> say2 = SayHelloParam;
     Console.WriteLine(say());
     Console.WriteLine(say1());
-    Console.WriteLine(SayHelloParam());
+    Console.WriteLine(say2("jow"));
 }
 ```
 
