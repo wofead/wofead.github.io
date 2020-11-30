@@ -1,4 +1,4 @@
-# C#协程和Unity
+# C#协程和Unity多线程
 
 [toc]
 
@@ -89,7 +89,7 @@ c#中的yield关键词，后面有两种基本的表达式：
 
 ```c#
 yield return <expresion>
-yiled break
+yield break
 ```
 
 yield break就是跳出协程的操作，一般用在报错或者需要退出协程的地方。
@@ -174,4 +174,191 @@ public class QuotaCoroutine : MonoBehaviour
     }
 }
 ```
+
+## TaskAsync
+
+```c#
+using System.Collections;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
+using UnityEngine;
+using TMPro;
+
+public class CoroutineTest : MonoBehaviour
+{
+    Stopwatch stopwatch;
+    static bool flag = false;
+    static int count = 0;
+    public TextMeshProUGUI text;
+    static double result = 0;
+    static double numPro = 0;
+    // Start is called before the first frame update
+    void Start()
+    {
+        stopwatch = new System.Diagnostics.Stopwatch();
+        stopwatch.Start();
+        //StartCoroutine(CoroutineCountDownSeq(3, "BasicCoCallA", "BasicCoCallB"));
+        //var _ = TaskAsyncCountDown(3, "BasicAsyncCall");
+        //保证不在主线程中进行计算,ConfigureAwait(false)
+        //var _ = Task.Run(() => TaskAsyncConutDownSeq(3, "BasicAsyncCallA", "BasicAsyncCallB"));
+        //CPUBindHead(120);
+        //var t = TaskAwaitACoroutine();
+        StartCoroutine(CoroutineAwaitATask());
+        //var _ = CPUBigHeadAsync(120);
+    }
+
+    void Update()
+    {
+        text.text = numPro + "";
+    }
+
+    void LogToTUnityConsole(object content, string flag, [CallerMemberName] string callerName = null)
+    {
+        UnityEngine.Debug.Log($"{callerName}：\t{flag} {content}\t at \t {stopwatch.ElapsedMilliseconds} \t\t in thread {Thread.CurrentThread.ManagedThreadId}");
+    }
+
+    public IEnumerator CoroutineCountDown(int count, string flag = "")
+    {
+        for (int i = count; i >= 0; i--)
+        {
+            LogToTUnityConsole(i, flag);
+            yield return new WaitForSeconds(1);
+        }
+    }
+
+    public IEnumerator CoroutineCountDownSeq(int countDown, params string[] flags)
+    {
+        foreach (var flag in flags)
+        {
+            yield return StartCoroutine(CoroutineCountDown(countDown, flag));
+        }
+    }
+
+    public async Task TaskAsyncCountDown(int count, string flag = "")
+    {
+        for (int i = count; i >= 0; i--)
+        {
+            LogToTUnityConsole(i, flag);
+            //async函数中await部分使用了默认的Task编排器，将每次Task执行完成后的线程上下文转换回到Unity的主线程。
+            //await Task.Delay(1000);
+            //ConfigureAwait(false),这时await 将使用线程池调度器，不再将每个步骤强行回归到Unity主线程。
+            await Task.Delay(1000).ConfigureAwait(false);
+        }
+    }
+
+    public async Task TaskAsyncConutDownSeq(int countDown, params string[] flags)
+    {
+        foreach (string flag in flags)
+        {
+            await TaskAsyncCountDown(countDown, flag);
+        }
+    }
+
+    //除了作为事件处理器这样的必需使用void函数的琴况下，这种没有返回Task无法进行外部调度编排的写法是强烈不建议使用的
+    public async void VoidAsyncCountDown(int count, string flag = "")
+    {
+        for (int i = count; i >= 0; i--)
+        {
+            LogToTUnityConsole(i, flag);
+            await Task.Delay(1000).ConfigureAwait(false);
+        }
+    }
+
+    public void CPUBindHead(int n)
+    {
+        result = 1;
+        LogToTUnityConsole(result, $"n!(n={n}) start");
+        for (int i = 1; i <= n; i++)
+        {
+            result = result * i;
+            numPro = result;
+            Thread.Sleep(10);
+        }
+        LogToTUnityConsole(result, $"n!(n={n}) stop");
+        Thread.Sleep(1000);
+
+        //Texture change logic puts here
+
+        LogToTUnityConsole(result, $"n!(n={n}) output");
+    }
+
+    public async Task CPUBigHeadAsync(int n)
+    {
+        result = 1;
+        await Task.Run(() =>
+        {
+            LogToTUnityConsole(result, $"n!(n={n}) start");
+            for (int i = 1; i <= n; i++)
+            {
+                result = result * i;
+                numPro = result;
+                Thread.Sleep(10);
+            }
+            LogToTUnityConsole(result, $"n!(n={n}) stop");
+        });  //Scheduler will contiue execution in main thread here 
+
+        await Task.Delay(1000);
+        //Texture change logic puts here
+        LogToTUnityConsole(result, $"n!(n={n}) output");
+    }
+
+    IEnumerator tempCoroutine(IEnumerator coro, System.Action afterExecutionCallback)
+    {
+        yield return coro;
+        afterExecutionCallback();
+    }
+
+    //如果想要在async方法中调用 一个Coroutine 并对其进行控制，我们需要将Coroutine 的执行封装成一个简单的Task.
+
+    //Unity 并没有对Coroutine的封装的完成callbak暴露出来，所以我们需要一个父级Coroutine调用来监视目标Coroutine的完成
+
+    //这时我们可以使用 TaskCompeletionSource<T> 来将异步操作封装成Task
+    public async Task TaskAwaitACoroutine()
+    {
+        await TaskAsyncCountDown(2, "precoro");
+        var tcs = new System.Threading.Tasks.TaskCompletionSource<object>();
+
+        StartCoroutine(tempCoroutine(CoroutineCountDown(3, "coro"), () => tcs.TrySetResult(null)));
+        await tcs.Task;
+        await TaskAsyncCountDown(2, "postcoro");
+    }
+
+    public IEnumerator CoroutineAwaitATask()
+    {
+        yield return CoroutineCountDown(2, "pretask");
+
+        var task = TaskAsyncCountDown(3, "task");
+        yield return new WaitUntil(() => task.IsCompleted || task.IsFaulted || task.IsCanceled);
+        //Check task's return;
+        if (task.IsCompleted)
+        {
+            LogToTUnityConsole("TDone", "task");
+        }
+        yield return CoroutineCountDown(2, "posttask");
+    }
+
+    public async Task TaskAwaitACoroutineWithEx()
+    {
+        await TaskAsyncCountDown(2, "precoro");
+        await this.StartCoroutineAsync(CoroutineCountDown(3, "coro"));
+        await TaskAsyncCountDown(2, "postcoro");
+    }
+
+    public IEnumerator CoroutineAwaitATaskWithEx()
+    {
+        yield return CoroutineCountDown(2, "pretask");
+        var task = TaskAsyncCountDown(3, "task");
+        yield return task.WaitAsCoroutine();
+        LogToTUnityConsole("TDone", "task");
+        yield return CoroutineCountDown(2, "posttask");
+    }
+}
+
+```
+
+在CPUBigHeadAsync和CPUBindHead的对比中，我们可以明显的发现，当使用CPUBigHeadAsync的时候，ui一直更新到结果，但是CPUBindHead直到结果出来才更新。
+
+还有为了避免第一个程序还是使用主线程，我们可以使用Task.Run(() => func)来避免。
 
