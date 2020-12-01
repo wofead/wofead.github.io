@@ -339,26 +339,167 @@ public class CoroutineTest : MonoBehaviour
         yield return CoroutineCountDown(2, "posttask");
     }
 
-    public async Task TaskAwaitACoroutineWithEx()
+    public async Task TaskWaitCoroutine()
     {
-        await TaskAsyncCountDown(2, "precoro");
-        await this.StartCoroutineAsync(CoroutineCountDown(3, "coro"));
-        await TaskAsyncCountDown(2, "postcoro");
+        await TaskCountDown(2, "PreCo");
+        await this.StartCoroutineAsync(CoroutineCountDown(3, "WaitCoroutine"));
+        await TaskCountDown(2, "postcoro");
     }
 
-    public IEnumerator CoroutineAwaitATaskWithEx()
+    public IEnumerator CoroutineWaitTask()
     {
-        yield return CoroutineCountDown(2, "pretask");
-        var task = TaskAsyncCountDown(3, "task");
-        yield return task.WaitAsCoroutine();
-        LogToTUnityConsole("TDone", "task");
+        yield return CoroutineCountDown(2, "PreTask");
+        var co = TaskCountDown(2, "ExcuteTask").AsCoroutine();
+        yield return co;
+        LogToUnityConsole("TDone", "task");
         yield return CoroutineCountDown(2, "posttask");
     }
 }
 
 ```
 
+```c#
+using System.Collections;
+using System.Threading.Tasks;
+using UnityEngine;
+
+static class CoroutineTaskHelper
+{
+    public static async Task StartCoroutineAsync(this MonoBehaviour monoBehaviour, IEnumerator coroutine)
+    {
+        var tcs = new TaskCompletionSource<object>();
+        monoBehaviour.StartCoroutine(emptyCoroutine(coroutine, tcs));
+        await tcs.Task;
+    }
+
+    /// <summary>
+    /// Translate a YieldInstruction to Task and run. It needs a Mono Behavior to locate Unity thread context.
+    /// </summary>
+    /// <param name="monoBehavior">The Mono Behavior that managing coroutines</param>
+    /// <param name="yieldInstruction"></param>
+    /// <returns>Task that can be await</returns>
+    public static async Task StartCoroutineAsync(this MonoBehaviour monoBehavior, YieldInstruction yieldInstruction)
+    {
+        var tcs = new TaskCompletionSource<object>();
+        monoBehavior
+            .StartCoroutine(
+                emptyCoroutine(
+                    yieldInstruction,
+                    tcs));
+        await tcs.Task;
+    }
+
+    private static IEnumerator emptyCoroutine(YieldInstruction coro, TaskCompletionSource<object> completion)
+    {
+        yield return coro;
+        completion.TrySetResult(null);
+    }
+
+
+    public static IEnumerator emptyCoroutine(IEnumerator coro, TaskCompletionSource<object> tsk)
+    {
+        yield return coro;
+        tsk.TrySetResult(null);
+    }
+
+    /// <summary>
+    /// Wrap a Task as a Coroutine.
+    /// </summary>
+    /// <param name="task">The target task.</param>
+    /// <returns>Wrapped Coroutine</returns>
+    public static CoroutineWithTask<System.Object> AsCoroutine(this Task task)
+    {
+        var coroutine = new WaitUntil(() => task.IsCompleted || task.IsFaulted || task.IsCanceled);
+        return new CoroutineWithTask<object>(task);
+    }
+
+    /// <summary>
+    /// Wrap a Task as a Coroutine.
+    /// </summary>
+    /// <param name="task">The target task.</param>
+    /// <returns>Wrapped Coroutine</returns>
+    public static CoroutineWithTask<T> AsCoroutine<T>(this Task<T> task)
+    {
+
+        return new CoroutineWithTask<T>(task);
+    }
+
+    /// <summary>
+    /// Wrapped Task, behaves like a coroutine
+    /// </summary>
+    public struct CoroutineWithTask<T> : IEnumerator
+    {
+
+        private IEnumerator _coreCoroutine;
+
+        /// <summary>
+        /// Constructor for Task with a return value;
+        /// </summary>
+        /// <param name="coreTask">Task that need wrap</param>
+        public CoroutineWithTask(Task<T> coreTask)
+        {
+            WrappedTask = coreTask;
+            _coreCoroutine = new WaitUntil(() => coreTask.IsCompleted || coreTask.IsFaulted || coreTask.IsCanceled);
+        }
+
+        /// <summary>
+        /// Constructor for Task without a return value;
+        /// </summary>
+        /// <param name="coreTask">Task that need wrap</param>
+        public CoroutineWithTask(Task coreTask)
+        {
+            WrappedTask = Task.Run(async () =>
+            {
+                await coreTask;
+                return default(T);
+            });
+            _coreCoroutine = new WaitUntil(() => coreTask.IsCompleted || coreTask.IsFaulted || coreTask.IsCanceled);
+        }
+
+        /// <summary>
+        /// The task have wrapped in this coroutine.
+        /// </summary>
+        public Task<T> WrappedTask { get; private set; }
+
+
+        /// <summary>
+        /// Task result, if it have.  Calling this property will wait execution synchronously.
+        /// </summary>
+        public T Result { get { return WrappedTask.Result; } }
+
+
+        /// <summary>
+        /// Gets the current element in the collection.
+        /// </summary>
+        public object Current => _coreCoroutine.Current;
+
+        /// <summary>
+        /// Advances the enumerator to the next element of the collection.
+        /// </summary>
+        /// <returns>
+        /// true if the enumerator was successfully advanced to the next element; false if
+        /// the enumerator has passed the end of the collection.
+        /// </returns>
+        public bool MoveNext()
+        {
+            return _coreCoroutine.MoveNext();
+        }
+
+        /// <summary>
+        /// Sets the enumerator to its initial position, which is before the first element
+        /// in the collection.
+        /// </summary>
+        public void Reset()
+        {
+            _coreCoroutine.Reset();
+        }
+    }
+}
+```
+
 在CPUBigHeadAsync和CPUBindHead的对比中，我们可以明显的发现，当使用CPUBigHeadAsync的时候，ui一直更新到结果，但是CPUBindHead直到结果出来才更新。
 
-还有为了避免第一个程序还是使用主线程，我们可以使用Task.Run(() => func)来避免。
+还有为了避免第一个程序还是使用主线程，我们可以使用Task.Run(() => func)来避免,**这样做可以避免第一个程序片段由于太耗时导致主线程卡顿**。
+
+还有在使用task的时候，最好不要追求再次回到主线程，这样可以大大的加快运算时间。
 
