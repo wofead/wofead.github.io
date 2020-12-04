@@ -73,6 +73,54 @@ public class TaskTest : MonoBehaviour
 
 上面两种方式`ConfigureAwait(false)`，这种方式是通过避免回到Start上下文的方式来避免死锁，而`Task.run()`,是让Task1运行的时候不处于主线程，两种方式都可以避免死锁。
 
+### Task和struct搭配由于struct值拷贝会出现问题
+
+```c#
+public struct Test
+{
+    public async Task Inc()
+    {
+        ++iRef;
+        Console.WriteLine(iRef);
+        await Task.Yield();
+    }
+    
+    public void Dec()
+    {
+        Console.WriteLine(iRef);
+    }
+    
+    int iRef;
+}
+
+Test asset = new Tesk();
+await asset.Inc();
+asset.Dec();
+//（输出结果依次为1和0）
+```
+
+Task方法出人意料之外细想后又在情理之中地copy了个新的struct对象实例来操作，本机制会引发的问题也是隐蔽。当然对与要求struct只能用来存数据的团队，应该不会踩到。
+
+Task虽说比Coroutine对错误传递相对友好，但是也不是完美的错误传递，稍有不慎也会出现吞异常的情况，让错误定位增添一丝难度。例子如下：
+
+```c#
+static async Task Start()
+{
+	TestError(true);
+}
+
+static async Task TestError(bool state)
+{
+    await Task.Delay(1);
+    if(state)
+    {
+        throw new Exception("aaa");
+    }
+}
+```
+
+
+
 ### 避免使用 Async Void
 
 异步方法有三种可能的返回类型:Task、Task\<T>和void，但是异步方法的自然返回类型只是Task和Task\<T>。当从同步代码转换为异步代码时，返回类型T的任何方法都将成为返回Task\<T>的异步方法，而返回void的任何方法都将成为返回Task的异步方法。下面的代码片段说明了一个同步的空返回方法及其等效的异步方法
@@ -115,7 +163,7 @@ public void AsyncVoidExceptions_CannotBeCaughtByCatch()
 
 可以使用AppDomain.UnhandledException或类似的针对GUI / ASP.NET应用程序的全部事件来观察这些异常，但是使用这些事件进行常规异常处理是无法维护的。
 
-异步void方法具有不同的构成语义。可以使用await，Task.WhenAny，Task.WhenAll等轻松地组成返回Task或Task <T>的异步方法。返回void的异步方法不能提供一种简单的方法来通知调用代码它们已完成。启动几个异步void方法很容易，但是确定它们何时完成并不容易。异步void方法在启动和结束时会通知其SynchronizationContext，但是自定义SynchronizationContext是常规应用程序代码的复杂解决方案。
+异步void方法具有不同的构成语义。可以使用await，Task.WhenAny，Task.WhenAll等轻松地组成返回Task或Task \<T>的异步方法。返回void的异步方法不能提供一种简单的方法来通知调用代码它们已完成。启动几个异步void方法很容易，但是确定它们何时完成并不容易。异步void方法在启动和结束时会通知其SynchronizationContext，但是自定义SynchronizationContext是常规应用程序代码的复杂解决方案。
 
 异步无效方法很难测试。由于错误处理和编写方面的差异，编写调用异步void方法的单元测试很困难。MSTest异步测试支持仅适用于返回Task或Task <T>的异步方法。可以安装一个SynchronizationContext来检测所有异步void方法何时完成并收集任何异常，但是使异步void方法代替返回Task则容易得多。
 
@@ -257,32 +305,60 @@ ThreadPool相比Thread来说具备了很多优势，但是ThreadPool却又存在
 
 ```c#
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ConsoleApp1
+namespace TaskStudy
 {
-    class Program
+    static class TaskTest
     {
-        static void Main(string[] args)
+        static Stopwatch stopwatch;
+        public static void StartTest()
         {
+            stopwatch = new Stopwatch();
+            stopwatch.Start();
+            Print("程序开始");
             Task t = new Task(() =>
             {
-                Console.WriteLine("任务开始工作……");
+                Print("任务开始工作");
                 //模拟工作过程
-                Thread.Sleep(5000);
+                Thread.Sleep(2000);
             });
             t.Start();
             t.ContinueWith((task) =>
             {
-                Console.WriteLine("任务完成，完成时候的状态为：");
-                Console.WriteLine("IsCanceled={0}\tIsCompleted={1}\tIsFaulted={2}", task.IsCanceled, task.IsCompleted, task.IsFaulted);
+                Print("任务完成");
+                Console.WriteLine("IsCanceled={0}\tIsCompleted={1}\tIsFaulted={2}, Time is {3}.", task.IsCanceled, task.IsCompleted, task.IsFaulted, stopwatch.ElapsedMilliseconds);
             });
+            //
+            Print("任务状态" + t.Status);
             Console.ReadKey();
         }
+
+        static void Print(string str)
+        {
+            Console.WriteLine("{0}，Time is:{1}, Current ThreadIs is {2}.", str, stopwatch.ElapsedMilliseconds, Thread.CurrentThread.ManagedThreadId);
+        }
+
     }
 }
+
+static void Main(string[] args)
+{
+    TaskTest.StartTest();
+}
+
+//程序开始，Time is:0, Current ThreadIs is 1.
+//任务状态WaitingToRun，Time is:17, Current ThreadIs is 1.
+//任务开始工作，Time is:22, Current ThreadIs is 3.
+//任务完成，Time is:2035, Current ThreadIs is 4.
+//IsCanceled=False        IsCompleted=True        IsFaulted=False, Time is 2036.
 ```
+
+从输出我们可以看到同步与异步的区分，任务是从第23毫秒开始的，ThreadId是3，任务完成是滴2035毫秒，ThreadId是4，这里为什么是4呢？原因是因为ContinueWith开启了另一个Task，你现在身处于等待模拟工作过程完成的那个Task里面，所以这里存在两个ThreadId。
+
+还有我们可以发现主线程其实已经执行到ReadKey了，只不过异步的线程还在执行。
 
 ### Task用法
 
@@ -317,27 +393,34 @@ Task.WaitAll(t3);//等待所有任务结束
 
 ```c#
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ConsoleApp1
+namespace TaskStudy
 {
-    class Program
+    static class WithoutReturn
     {
-        static void Main(string[] args)
+        static Stopwatch stopwatch;
+        public static void StartTest()
         {
+            stopwatch = new Stopwatch();
+            stopwatch.Start();
+            TaskMethod("程序开始");
             var t1 = new Task(() => TaskMethod("Task 1"));
             var t2 = new Task(() => TaskMethod("Task 2"));
             t2.Start();
             t1.Start();
             Task.WaitAll(t1, t2);
+            TaskMethod("程序执行1111");
             Task.Run(() => TaskMethod("Task 3"));
             Task.Factory.StartNew(() => TaskMethod("Task 4"));
             //标记为长时间运行任务,则任务不会使用线程池,而在单独的线程中运行。
-            Task.Factory.StartNew(() => TaskMethod("Task 5"), TaskCreationOptions.LongRunning);
+            Task.Factory.StartNew(() => TaskMethod("Task 5"),
+                TaskCreationOptions.LongRunning);
 
             #region 常规的使用方式
-            Console.WriteLine("主线程执行业务处理.");
+            TaskMethod("主线程执行业务开始");
             //创建任务
             Task task = new Task(() =>
             {
@@ -352,54 +435,121 @@ namespace ConsoleApp1
             Console.WriteLine("主线程执行其他处理");
             task.Wait();
             #endregion
-
             Thread.Sleep(TimeSpan.FromSeconds(1));
-            Console.ReadLine();
+            Console.ReadKey();
         }
 
-        static void TaskMethod(string name)
+        static void TaskMethod(string str)
         {
-            Console.WriteLine("Task {0} is running on a thread id {1}. Is thread pool thread: {2}",
-                name, Thread.CurrentThread.ManagedThreadId, Thread.CurrentThread.IsThreadPoolThread);
+            Thread.Sleep(500);
+            Console.WriteLine("Task name is {0}，Time is:{1}, Current ThreadIs is {2}.", str, stopwatch.ElapsedMilliseconds, Thread.CurrentThread.ManagedThreadId);
         }
     }
 }
+
+using System;
+using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace TaskStudy
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            WithoutReturn.StartTest();
+        }
+    }
+
+}
+//Task name is 程序开始，Time is:502, Current ThreadIs is 1.
+//Task name is Task 1，Time is:1040, Current ThreadIs is 5.
+//Task name is Task 2，Time is:1040, Current ThreadIs is 3.
+//Task name is 程序执行1111，Time is:1541, Current ThreadIs is 1.
+//Task name is 主线程执行业务开始，Time is:2052, Current ThreadIs is 1.
+//主线程执行其他处理
+//使用System.Threading.Tasks.Task执行异步操作.
+//0
+//1
+//2
+//Task name is Task 3，Time is:2052, Current ThreadIs is 5.
+//3
+//4
+//5
+//6
+//7
+//8
+//9
+//Task name is Task 4，Time is:2083, Current ThreadIs is 6.
+//Task name is Task 5，Time is:2099, Current ThreadIs is 7.
 ```
+根据上面的输出，我们可以发现Task.WaitAll会阻塞当前的上下文。
+
 **async/await的实现方式:**
 
 ```c#
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-
-namespace ConsoleApp1
+namespace TaskStudy
 {
-    class Program
+    static class WithOutReturnAwait
     {
-        async static void AsyncFunction()
+        static Stopwatch stopwatch;
+        public static void StartTest()
         {
-            await Task.Delay(1);
-            Console.WriteLine("使用System.Threading.Tasks.Task执行异步操作.");
-            for (int i = 0; i < 10; i++)
-            {
-                Console.WriteLine(string.Format("AsyncFunction:i={0}", i));
-            }
-        }
-
-        public static void Main()
-        {
-            Console.WriteLine("主线程执行业务处理.");
-            AsyncFunction();
-            Console.WriteLine("主线程执行其他处理");
+            stopwatch = new Stopwatch();
+            stopwatch.Start();
+            Print("程序开始：");
+            var t = AsyncFunction();
+            //Task.WaitAll(t);
             for (int i = 0; i < 10; i++)
             {
                 Console.WriteLine(string.Format("Main:i={0}", i));
             }
-            Console.ReadLine();
+            Console.ReadKey();
+        }
+
+        async static Task AsyncFunction()
+        {
+            Print("AsyncFunction开始");
+            await Task.Delay(1000);
+            Print("异步操作开始");
+            int result = 1;
+            for (int i = 0; i < 100; i++)
+            {
+                result *= i;
+            }
+            Print("Result:" + result);
+            Print("异步操作完成");
+        }
+
+        static void Print(string str)
+        {
+            Console.WriteLine("{0}，Time is:{1}, Current ThreadIs is {2}.", str, stopwatch.ElapsedMilliseconds, Thread.CurrentThread.ManagedThreadId);
         }
     }
 }
+//程序开始：，Time is:0, Current ThreadIs is 1.
+//AsyncFunction开始，Time is:1, Current ThreadIs is 1.
+//异步操作开始，Time is:1033, Current ThreadIs is 4.
+//Result:0，Time is:1033, Current ThreadIs is 4.
+//异步操作完成，Time is:1034, Current ThreadIs is 4.
+//Main:i=0
+//Main:i=1
+//Main:i=2
+//Main:i=3
+//Main:i=4
+//Main:i=5
+//Main:i=6
+//Main:i=7
+//Main:i=8
+//Main:i=9
 ```
+从日志里面可以看到，`await Task.Delay(1000);`之前线程还在主线程，之后就在子线程了。还有就是当注释掉` Task.WaitAll(t);`可以发现，主线程没有被阻塞，当加上WaitAll的时候，主线程和上面的例子一样，会被阻塞。
+
 **带返回值的方式**
 
 ```c#
@@ -483,7 +633,59 @@ namespace ConsoleApp1
         }
     }
 }
+
+using System;
+using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
+namespace TaskStudy
+{
+    static class WithOutReturnAwait
+    {
+        static Stopwatch stopwatch;
+        public static void StartTest()
+        {
+            stopwatch = new Stopwatch();
+            stopwatch.Start();
+            Print("程序开始：");
+            var t = AsyncFunction();
+            //t.Wait();
+            Print(" Main Result:" + t.Result);
+            //Task.WaitAll(t);
+            for (int i = 0; i < 10; i++)
+            {
+                Console.WriteLine(string.Format("Main:i={0}", i));
+            }
+            Console.ReadKey();
+        }
+
+        async static Task<int> AsyncFunction()
+        {
+            Print("AsyncFunction开始");
+            await Task.Delay(1000);
+            Print("异步操作开始");
+            int result = 1;
+            for (int i = 0; i < 100; i++)
+            {
+                result *= i;
+            }
+            Print("Result:" + result);
+            Print("异步操作完成");
+            return result;
+        }
+
+        static void Print(string str)
+        {
+            Console.WriteLine("{0}，Time is:{1}, Current ThreadIs is {2}.", str, stopwatch.ElapsedMilliseconds, Thread.CurrentThread.ManagedThreadId);
+        }
+    }
+}
+
 ```
+带返回值的Task，使用Task的泛型类型，泛型就是你的返回值类型，带泛型的就是带返回值的。
+
+在这里我们可以发现，t.Result是会锁定上下文的，和WaitAll作用一致，t.Wait也具有这个功能。
+
 **async/await的实现:**
 
 ```c
@@ -557,95 +759,84 @@ namespace ConsoleApp1
 }
 ```
 
-### 任务串行
+### 任务串行以及子任务
 
 ```c#
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-
-namespace ConsoleApp1
+namespace TaskStudy
 {
-    class Program
+    static class AcyncAndChild
     {
-        static void Main(string[] args)
+        static Stopwatch stopwatch;
+        static ConcurrentStack<int> stack;
+        public static void StartTest()
         {
-            ConcurrentStack<int> stack = new ConcurrentStack<int>();
-
-            //t1先串行
-            var t1 = Task.Factory.StartNew(() =>
-            {
+            stopwatch = new Stopwatch();
+            stack = new ConcurrentStack<int>();
+            stopwatch.Start();
+            //t1和t2串行
+            var t1 = Task.Factory.StartNew(() => {
+                Print("Task1");
+                Thread.Sleep(100);
                 stack.Push(1);
                 stack.Push(2);
             });
 
-            //t2,t3并行执行
             var t2 = t1.ContinueWith(t =>
             {
-                int result;
-                stack.TryPop(out result);
-                Console.WriteLine("Task t2 result={0},Thread id {1}", result, Thread.CurrentThread.ManagedThreadId);
+                stack.TryPop(out int result);
+                Thread.Sleep(100);
+                Print("Task 2 pop result:" + result);
             });
-
-            //t2,t3并行执行
+            //t2 和 t3并行
             var t3 = t1.ContinueWith(t =>
             {
-                int result;
-                stack.TryPop(out result);
-                Console.WriteLine("Task t3 result={0},Thread id {1}", result, Thread.CurrentThread.ManagedThreadId);
+                stack.TryPop(out int result);
+                Thread.Sleep(50);
+                Print("Task 3 pop result:" + result);
             });
 
-            //等待t2和t3执行完
-            Task.WaitAll(t2, t3);
-
-            //t7串行执行
-            var t4 = Task.Factory.StartNew(() =>
-            {
-                Console.WriteLine("当前集合元素个数：{0},Thread id {1}", stack.Count, Thread.CurrentThread.ManagedThreadId);
-            });
-            t4.Wait();
-        }
-    }
-}
-```
-
-### 子任务
-
-```c#
-using System;
-using System.Threading.Tasks;
-
-namespace ConsoleApp1
-{
-    class Program
-    {
-        public static void Main()
-        {
             Task<string[]> parent = new Task<string[]>(state =>
             {
                 Console.WriteLine(state);
                 string[] result = new string[2];
                 //创建并启动子任务
-                new Task(() => { result[0] = "我是子任务1。"; }, TaskCreationOptions.AttachedToParent).Start();
-                new Task(() => { result[1] = "我是子任务2。"; }, TaskCreationOptions.AttachedToParent).Start();
+                new Task(() => { result[0] = "我是子任务1。"; Print("子任务1"); }, TaskCreationOptions.AttachedToParent).Start();
+                new Task(() => { result[1] = "我是子任务2。"; Print("子任务2"); }, TaskCreationOptions.AttachedToParent).Start();
                 return result;
             }, "我是父任务，并在我的处理过程中创建多个子任务，所有子任务完成以后我才会结束执行。");
             //任务处理完成后执行的操作
             parent.ContinueWith(t =>
             {
-                Array.ForEach(t.Result, r => Console.WriteLine(r));
+                Print("父任务完成！！！");
             });
             //启动父任务
             parent.Start();
             //等待任务结束 Wait只能等待父线程结束,没办法等到父线程的ContinueWith结束
             //parent.Wait();
-            Console.ReadLine();
 
+            Print("Main");
+            Console.ReadKey();
+            
+        }
+
+
+        static void Print(string str)
+        {
+            Console.WriteLine("{0}，Time is:{1}, Current ThreadIs is {2}.", str, stopwatch.ElapsedMilliseconds, Thread.CurrentThread.ManagedThreadId);
         }
     }
 }
+
 ```
+
+### 
+
+
 
 ### 动态并行(TaskCreationOptions.AttachedToParent) 父任务等待所有子任务完成后 整个任务才算完成
 
