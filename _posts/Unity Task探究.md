@@ -976,6 +976,125 @@ namespace ConsoleApp1
 }
 ```
 
+可以通过一个更简洁的例子来看一下关于Task的内容：
+
+```c#
+using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace TaskStudy
+{
+    static class TaskCancellation
+    {
+        static Stopwatch stopwatch;
+        public static void StartTest()
+        {
+            stopwatch = new Stopwatch();
+            stopwatch.Start();
+            CancellationTokenSource cts = new CancellationTokenSource();
+            CancellationToken ct = cts.Token;
+            ManualResetEvent mre = new ManualResetEvent(true);
+            Task task = new Task(async () =>
+            {
+                while (true)
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    // 初始化为true时执行WaitOne不阻塞
+                    mre.WaitOne();
+                    Print("Task");
+                    // Doing something.......
+                    // 模拟等待100ms
+                    Thread.Sleep(500);
+                    //await Task.Delay(500);
+                }
+            }, ct);
+            task.Start();
+            Print(task.Status.ToString());
+            bool isReset = false;
+            bool isSet = false;
+            bool isCancel = false;
+            while (true)
+            {
+                if (stopwatch.ElapsedMilliseconds > 2000 && stopwatch.ElapsedMilliseconds <= 4000)
+                {
+                    if (!isReset)
+                    {
+                        isReset = true;
+                        Print(task.Status.ToString());
+                        Print("暂停");
+                        mre.Reset();
+                    }
+                }
+                else
+                {
+                    if (stopwatch.ElapsedMilliseconds > 4000 && stopwatch.ElapsedMilliseconds <= 6000)
+                    {
+                        if (!isSet)
+                        {
+                            isSet = true;
+                            Print(task.Status.ToString());
+                            Print("继续");
+                            mre.Set();
+                        }
+                    }
+                    else
+                    {
+                        if (stopwatch.ElapsedMilliseconds > 6000)
+                        {
+                            if (!isCancel)
+                            {
+                                isCancel = true;
+                                Print(task.Status.ToString());
+                                Print("取消");
+                                cts.Cancel();
+                            }
+                        }
+                    }
+                }
+                if (task.Status == TaskStatus.Canceled || task.Status == TaskStatus.Faulted || task.Status == TaskStatus.RanToCompletion)
+                {
+                    Print("结束:" + task.Status);
+                    break;
+                }
+            }
+            Print("Finish");
+            Console.ReadLine();
+        }
+
+        static void Print(string str)
+        {
+            Console.WriteLine("{0}，Time is:{1}, Current ThreadIs is {2}.", str, stopwatch.ElapsedMilliseconds, Thread.CurrentThread.ManagedThreadId);
+        }
+    }
+}
+//WaitingToRun，Time is:17, Current ThreadIs is 1.
+//Task，Time is:22, Current ThreadIs is 3.
+//Task，Time is:533, Current ThreadIs is 3.
+//Task，Time is:1047, Current ThreadIs is 3.
+//Task，Time is:1549, Current ThreadIs is 3.
+//Running，Time is:2001, Current ThreadIs is 1.
+//暂停，Time is:2001, Current ThreadIs is 1.
+//Running，Time is:4001, Current ThreadIs is 1.
+//继续，Time is:4001, Current ThreadIs is 1.
+//Task，Time is:4001, Current ThreadIs is 3.
+//Task，Time is:4509, Current ThreadIs is 3.
+//Task，Time is:5017, Current ThreadIs is 3.
+//Task，Time is:5527, Current ThreadIs is 3.
+//Running，Time is:6001, Current ThreadIs is 1.
+//取消，Time is:6001, Current ThreadIs is 1.
+//结束:RanToCompletion，Time is:6033, Current ThreadIs is 1.
+//Finish，Time is:6033, Current ThreadIs is 1.
+```
+
+如输出所示，这里我首先先暂停了Task，然后又让其继续，然后再取消。这里需要注意一点，await函数会改变你的task值，所以在睡眠的时候不要使用await，而是使用Thread.sleep.
+
 ### 处理任务中的异常
 
 ```c#
@@ -1189,9 +1308,54 @@ namespace ConsoleApp1
 }
 ```
 
+**Task.FromResult用来创建一个带返回值的、已完成的Task。**
+
+**场景一**：以同步的方式实现一个异步接口方法
+
+```c#
+interface IMyInterface
+{
+	Task<int> DoSthAsync();
+}
+public class MyClass : IMyInterface
+{
+	public Task<int> DoSthAsync()
+	{
+		int result = 1;
+		return Task.FromResult(result);
+	}
+}
+```
+
+以上，在实现类MyClass的DoSthAsync方法中，都是以同步方式实现，但返回结果要是Task\<int>,使用Task.FromResult刚好能返回一个带值的异步结果。
+
+**场景二:**从缓存中获取值，以同步或者异步的方式实现.
+
+假设需要根据key从缓存中获取值，如果每个key对应的缓存不存在，就需要以异步的方式获取缓存，如果存在，就直接中缓存中获取值。
+
+```c#
+private async Task<string> GetValueAsync(int key)
+{
+	string result = await SomeAsyncMethod();
+	cache.TrySetValye(key, result);
+	return result;
+}
+public Task<string> GetValueFromCache(int key)
+{
+	string result = string.Empty;
+	if(cache.TryGetValue(key, out result))
+	{
+		return Task.FromResult(result);
+	}
+	return GetValueAsync(key);
+}
+```
+
+
+
 ### 使用IProgress实现异步编程的进程通知
 
-IProgress<in T>只提供了一个方法void Report(T value)，通过Report方法把一个T类型的值报告给IProgress,然后IProgress<in T>的实现类Progress<in T>的构造函数接收类型为Action<T>的形参，通过这个委托让进度显示在UI界面中。
+IProgress\<in T>只提供了一个方法void Report(T value)，通过Report方法把一个T类型的值报告给IProgress,然后IProgress\<in T>的实现类Progress\<in T>的构造函数接收类型为Action\<T>的形参，通过这个委托让进度显示在UI界面中。
 
 ```c#
 using System;
@@ -1413,6 +1577,32 @@ private void call()
     //相当于
     //Thread th= new Thread(new ThreadStart(test2));
     //th.Start();
+}
+
+
+private static async Task<int> test2(object i)
+{
+
+
+    HttpClient client = new HttpClient();
+    var a = await client.GetAsync("http://www.baidu.com");
+    Task<string> s = a.Content.ReadAsStringAsync();
+    Console.WriteLine(s.Result);
+    //System.Threading.Thread.Sleep(3000);
+    //MessageBox.Show("hello:"+ i);
+    //this.Invoke(new Action(() =>
+    //{
+    //    pictureBox1.Visible = false;
+    //}));
+    return 0;
+}
+
+async public static void call()
+{
+    //Func<string, string> funcOne = delegate(string s){ return "fff"; };
+    object i = 55;
+    var t = Task<Task<int>>.Factory.StartNew(new Func<object, Task<int>>(test2), i);
+    Console.ReadKey();
 }
 ```
 
