@@ -590,7 +590,7 @@ Unity 支持多种渲染平台，如 gles、 gles3、 opengl、 d3d11、 d3d11_9
 
 知道可编程顶点着色器和片段着色器在图形流水线中的位置十分重要。  
 
-![graph](C:\Users\user3\Desktop\graph.png)
+![graph](..\img\armImprove\graph.png)
 
 **原语汇编：**在原语汇编期间，顶点将汇编至几何原语中。产生的原语将剪切至裁剪区域并发送至光栅化程序。  
 
@@ -691,7 +691,7 @@ struct vertexOutput
 
 
 
-![insertValue](C:\Users\user3\Desktop\insertValue.png)
+![insertValue](..\img\armImprove\insertValue.png)
 
 相同的插值适用于从顶点着色器传递至片段着色器的所有变量。这是一款功能非常强大的工具，因为它配备硬件线性插值器。例如，如果您拥有一个平面，并且想要将颜色作为与中心 C 距离的函数，请将中心 C 的坐标传递至顶点着色器，计算从顶点到 C 之间的平方距离，然后将该量度传递至片段着色器。距离值将自动内插至每个三角形的每个像素中。  
 
@@ -751,7 +751,7 @@ Properties
 
 材质类显示了多种将材质相关数据传递至着色器的方法。如下：
 
-![metarialMethod](C:\Users\user3\Desktop\metarialMethod.png)
+![metarialMethod](..\img\armImprove\metarialMethod.png)
 
 在下列代码中，主摄像机渲染完场景前，辅助摄像机 shwCam 会渲染阴影到将与主摄像机渲染通道合并的纹理。  
 
@@ -792,7 +792,7 @@ public void OnWillRenderObject
 
 例如可以反射地板，提供的地板反射面的着色器ctReflLocalCubemap.shader 的输出  。
 
-![room1](C:\Users\user3\Desktop\room1.png)
+![room1](..\img\armImprove\room1.png)
 
 在下例片段着色器中，输出颜色已替换为标准化的局部修正正反射向量：
 
@@ -810,7 +810,7 @@ return float4(normalize(localCorrRefDirWS), 1.0);
 
 下图显示了将片段输出颜色替换为标准化的局部修正反射向量的结果  ：
 
-![room2](C:\Users\user3\Desktop\room2.png)
+![room2](..\img\armImprove\room2.png)
 
 最初可能很难在调试时解析各颜色的含义，因此请尝试专注于单一颜色分量。例如，您只能返回标准化局部修正反射向量的 Y 分量：  
 
@@ -823,7 +823,7 @@ return float4(0, normLocalCorrReflDirWS.y, 0 ,1)
 
   下图显示了使用单一颜色的着色器调试：
 
-![room3](C:\Users\user3\Desktop\room3.png)
+![room3](..\img\armImprove\room3.png)
 
 检查使用颜色调试的幅度是否介于 0 和 1 之间，因为所有其他值已自动固定。所有负值均指定为 0，而所有大于 1 的值均指定为 1。  
 
@@ -839,15 +839,15 @@ Unity 版本 5 和更高版本将基于局部立方体贴图的反射实施为�
 
 第一批解决方案中的其中一个便是球形贴图。此方案无需通过计算量大的射线跟踪或光照计算来模拟对象的反射或光照。  
 
-![te1](C:\Users\user3\Desktop\te1.png)
+![te1](..\img\armImprove\te1.png)
 
 此方法有多种劣势，但是主要问题在于，将图片贴图至球体时会出现失真。 1999 年，立方体贴图与硬件加速可结合使用。立方体贴图解决了与球形贴图相关的图像失真、视角依赖性以及低效计算等问题。  
 
-![cube5](C:\Users\user3\Desktop\cube5.png)
+![cube5](..\img\armImprove\cube5.png)
 
 立方体贴图使用立方体的六个面作为贴图形状。环境投射到立方体的每个面并存储为六个正方纹理，或展开为单个纹理的六个区域。可以使用六个不同的摄像机方位从指定位置渲染场景，以生成立方体贴图， 90 度的视锥体代表每个立方体表面。源图像将被直接采样。对中间环境贴图重新采样不会产生任何失真。  
 
-![ref](C:\Users\user3\Desktop\ref.png)
+![ref](..\img\armImprove\ref.png)
 
 若要实现基于立方体贴图的反射，请评估反射向量 R 并用该向量从立方体贴图 _Cubemap 中获取像素元，方法是使用可用纹理查找函数 texCUBE()：  
 
@@ -866,7 +866,7 @@ float4 color = texCUBE(_Cubemap, R);
 
 下图展示不正确的反射：
 
-![arm1](C:\Users\user3\Desktop\arm1.png)
+![arm1](..\img\armImprove\arm1.png)
 
 如果在局部环境中使用此技术，则会产生不正确的反射。反射不正确的原因在于，在表达式 float4 color = texCUBE(_Cubemap, R); 中，没有与局部几何结构绑定。例如，如果您走过反射地板并从同一角度看它， 您将始终看到相同的反射。反射向量始终相同，并且该表达式始终得出相同的结果。这是因为视线向量的方向未发生变化。在真实的世界中，反射取决于观察角度和位置。  
 
@@ -878,7 +878,7 @@ float4 color = texCUBE(_Cubemap, R);
 
 下图显示了使用包围球体进行局部修正：  
 
-![mod](C:\Users\user3\Desktop\mod.png)
+![mod](..\img\armImprove\mod.png)
 
 包围球体用作界定待反射场景的代理区域。它不使用反射向量 R 从立方体贴图中获取纹理，而是使用新向量R’。为构建此新向量，您需要在反射向量 R 方向的局部点 V 中找到射线包围球体的相交点 P。再根据生成立方体贴图的立方体贴图 C 的中心创建相交点 P 的新向量 R’。然后使用此向量获取立方体贴图的纹理。  
 
@@ -893,7 +893,7 @@ float4 col = texCUBE(_Cubemap, R');
 
 下图显示了使用包围盒进行局部修正：
 
-![modi](C:\Users\user3\Desktop\modi.png)
+![modi](..\img\armImprove\modi.png)
 
 **无限立方体贴图**:
 
@@ -1126,7 +1126,7 @@ $$
 
 下图显示了射线与盒相交点的 2D 表示：  
 
-![xj](C:\Users\user3\Desktop\xj.png)
+![xj](..\img\armImprove\xj.png)
 
 若要找到哪种答案确实是与盒的相交点，您需要用参数 t 中较大的值来确认最小平面上的相交点。  
 $$
@@ -1140,14 +1140,14 @@ $$
 
 下图显示了无相交点的射线与盒：  
 
-![xj2](C:\Users\user3\Desktop\xj2.png)
+![xj2](..\img\armImprove\xj2.png)
 
 如果您保证反射面已被BBox 包围，即反射线的来源位于BBox 中，则始终存在两个与该盒相交的相交点，并
 且处理不同情况的流程也会简化  
 
 下图显示了 BBox 中的射线与盒相交点：  
 
-![xj3](C:\Users\user3\Desktop\xj3.png)
+![xj3](..\img\armImprove\xj3.png)
 
 #### 用于使编辑器脚本生成立方体贴图的源代码  
 
