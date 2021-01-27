@@ -1,38 +1,31 @@
-# 两数相除
+# 串联所有单词的子串
 
-> 给定两个整数，被除数 dividend 和除数 divisor。将两数相除，要求不使用乘法、除法和 mod 运算符。
+> 给定一个字符串 s 和一些长度相同的单词 words。找出 s 中恰好可以由 words 中所有单词串联形成的子串的起始位置。
 >
-> 返回被除数 dividend 除以除数 divisor 得到的商。
+> 注意子串要与 words 中的单词完全匹配，中间不能有其他字符，但不需要考虑 words 中单词串联的顺序。
 >
-> 整数除法的结果应当截去（truncate）其小数部分，例如：truncate(8.345) = 8 以及 truncate(-2.7335) = -2
->
-> 提示：
->
-> 1. 被除数和除数均为 32 位有符号整数。
-> 2. 除数不为 0。
-> 3. 假设我们的环境只能存储 32 位有符号整数，其数值范围是 [−2^31, 2^31 − 1]。本题中，如果除法结果溢出，则返回 2^31 − 1。
 
 ## 结题思路
 
-1. 开始想的是有多少个除数，一个一个的累加，结果超时即：`Solve`函数
-2. 二分外加上倍乘，再扩一倍就好了，二分没有什么意义，还没有倍乘好
-3. 倍乘加上负数处理方式
-
-**算有多少个除数，可以增倍，第二种优化方案更好理解**
+1. 暴力解法。
+2. 滑动窗口
+3. 子串长度大小的窗口进行滑动
+4. 匹配与不匹配
+5. 匹配是否超额度，超额则移动左指针，直到不超额。
+6. 判断count是否等于子串个数。
 
 ## 解：
 
 ```c#
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace CodeExercise
+namespace TaskExercise
 {
     public class ArrayFindSubstring
     {
+        //暴力解法
         public static IList<int> Solve(string s, string[] words)
         {
             IList<int> result = new List<int>();
@@ -56,7 +49,7 @@ namespace CodeExercise
                 {
                     string str = s.Substring(i + j * itemStrLen, itemStrLen);
                     int index = wordList.IndexOf(str);
-                    if (index != -1 )
+                    if (index != -1)
                     {
                         wordList.RemoveAt(index);
                     }
@@ -75,7 +68,71 @@ namespace CodeExercise
 
             return result;
         }
+
+        public static IList<int> ImproveSolve(string s, string[] words)
+        {
+            int wordsLen = words.Length;
+            int oneWorldLen = words[0].Length;
+            int wordsStrLen = wordsLen * oneWorldLen;
+            int sLen = s.Length;
+            IList<int> result = new List<int>();
+            if (sLen == 0 || wordsLen == 0 || wordsStrLen > sLen)
+            {
+                return result;
+            }
+            Dictionary<string, int> wordsDic = new Dictionary<string, int>();
+            foreach (var item in words)
+            {
+                if (s.IndexOf(item) <0)
+                {
+                    return result;
+                }
+                wordsDic[item] = GetDicValueNum(wordsDic, item) + 1;
+            }
+            for (int i = 0; i < oneWorldLen; i++)
+            {
+                int left = i, right = i, count = 0;
+                Dictionary<string, int> subDic = new Dictionary<string, int>();
+                while (right + oneWorldLen <= sLen)
+                {
+                    string word = s.Substring(right, oneWorldLen);
+                    right += oneWorldLen;
+                    if (!wordsDic.ContainsKey(word))
+                    {
+                        left = right;
+                        subDic.Clear();
+                        count = 0;
+                    }
+                    else{
+                        subDic[word] = GetDicValueNum(subDic, word) + 1;
+                        ++count;
+                        while (GetDicValueNum(subDic, word) > GetDicValueNum(wordsDic, word))
+                        {
+                            string w = s.Substring(left, oneWorldLen);
+                            subDic[w] = GetDicValueNum(subDic, w) - 1;
+                            --count;
+                            left += oneWorldLen;
+                        }
+                        if (count == wordsLen) result.Add(left);
+                    }
+                }
+            }
+            return result;
+        }
+
+        public static int GetDicValueNum(Dictionary<string,int> dic, string value)
+        {
+            int num;
+            if (!dic.ContainsKey(value))
+            {
+                num = 0;
+            }
+            else
+            {
+                num = dic[value];
+            }
+            return num;
+        }
     }
 }
-
 ```
