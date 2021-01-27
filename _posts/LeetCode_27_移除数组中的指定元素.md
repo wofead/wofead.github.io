@@ -17,86 +17,27 @@
 
 ```c#
 using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace TaskExercise
+namespace CodeExercise
 {
-    public class StrStr
+    public class ArrayRemoveElement
     {
-        public static int Solve(string haystack, string needle)
+        public static int Solve(int[] nums, int val)
         {
-            if (needle.Length == 0)
+            int len = nums.Length;
+            if (len == 0)
             {
                 return 0;
             }
-            int result = -1;
-            int needleLen = needle.Length;
-            int haystackLen = haystack.Length;
-            for (int i = 0; i < haystackLen; i++)
+            int result = 0;
+            for (int i = 0; i < len; i++)
             {
-                if (needleLen > haystackLen - i)
+                if (nums[i] != val)
                 {
-                    return -1;
-                }
-                bool flag = true;
-                for (int j = 0; j < needleLen; j++)
-                {
-                    if (needle[j] != haystack[i + j])
-                    {
-                        flag = false;
-                        break;
-                    }
-                }
-                if (flag)
-                {
-                    return i;
+                    nums[result] = nums[i];
+                    result++;
                 }
             }
-            return result;
-        }
-
-        public static int KMPSovle(string haystack, string needle)
-        {
-            //KMP的主要思想是当出现字符串不匹配时，可以知道一部分之前已经匹配的文本内容，可以利用这些信息避免从头再去做匹配了。
-            //next数组就是一个前缀表（prefix table）。
-            //前缀表是用来回退的，它记录了模式串与主串(文本串)不匹配的时候，模式串应该从哪里开始重新匹配。
-            if (needle.Length == 0)
-            {
-                return 0;
-            }
-            int result = -1;
-            int needleLen = needle.Length;
-            int haystackLen = haystack.Length;
-            int index = 0;
-            int preIndex = 0;
-            bool init = true;
-            for (int i = 0; i < haystackLen; i++)
-            {
-                if (haystack[i] == needle[index])
-                {
-                    index++;
-                    if (index == needleLen)
-                    {
-                        return i - index + 1;
-                    }
-                }
-                else
-                {
-                    index -= preIndex;
-                    preIndex = 0;
-                    init = true;
-                }
-                if (!init && haystack[i - 1] == needle[preIndex])
-                {
-                    preIndex++;
-                }
-                else
-                {
-                    init = false;
-                    preIndex = 0;
-                }
-            }
+            Array.Resize<int>(ref nums, result);
             return result;
         }
     }
