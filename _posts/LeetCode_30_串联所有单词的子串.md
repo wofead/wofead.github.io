@@ -113,6 +113,7 @@ namespace TaskExercise
                             --count;
                             left += oneWorldLen;
                         }
+                        //这里不要重置count，subDic以及设置left和right，有可能下一个字符串也满足
                         if (count == wordsLen) result.Add(left);
                     }
                 }
