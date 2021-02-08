@@ -124,24 +124,31 @@ namespace Arithmatic
 
 ```java
 public class Solution {
-    public int longestValidParentheses(String s) {
-        int maxans = 0;
-        Deque<Integer> stack = new LinkedList<Integer>();
-        stack.push(-1);
-        for (int i = 0; i < s.length(); i++) {
-            if (s.charAt(i) == '(') {
-                stack.push(i);
-            } else {
-                stack.pop();
-                if (stack.empty()) {
-                    stack.push(i);
-                } else {
-                    maxans = Math.max(maxans, i - stack.peek());
-                }
+    public IList<IList<int>> CombinationSum(int[] candidates, int target) {
+          IList<IList<int>> result = new List<IList<int>>();
+            List<int> combine = new List<int>();
+            Dfs(candidates, target, result, combine, 0);
+            return result;  
+    }
+     public void Dfs(int[] candidates, int target, IList<IList<int>> result, List<int> combine, int index)
+        {
+            if (index == candidates.Length)
+            {
+                return;
+            }
+            if (target == 0)
+            {
+                result.Add(new List<int>(combine));
+                return;
+            }
+            Dfs(candidates, target, result, combine, index + 1);
+            if (target - candidates[index] >=0)
+            {
+                combine.Add(candidates[index]);
+                Dfs(candidates, target - candidates[index], result, combine, index);
+                combine.RemoveAt(combine.Count - 1);
             }
         }
-        return maxans;
-    }
 }
 ```
 
