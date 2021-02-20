@@ -14,7 +14,7 @@
    2. 从上到下遍历右侧元素，依次为 (*top*+1,*right*) 到 (*bottom*,*right*)。
    3. 如果 left<right 且 top<bottom，则从右到左遍历下侧元素，依次为 (bottom,right−1) 到 (bottom,left+1)，以及从下到上遍历左侧元素，依次为 (bottom,left) 到 (top+1,left)。
 
-3. 遍历完当前层的元素之后，将 left 和 top 分别增加 11，将 right 和 bottom 分别减少 11，进入下一层继续遍历，直到遍历完所有元素为止。
+3. 遍历完当前层的元素之后，将 left 和 top 分别增加 1，将 right 和 bottom 分别减少 1，进入下一层继续遍历，直到遍历完所有元素为止。
 
 
 ## 解：
