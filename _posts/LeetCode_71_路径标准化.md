@@ -8,9 +8,9 @@
 
 ## 结题思路
 
-1. 斐波那契数列类似。
-2. 一阶为1，二阶为2，三阶是1和2之和。
-3. 4阶是2与3之和。
+1. 状态机。
+2. 状态有四种，根据不同的形态做不同的事情。
+3. 考虑字符为`\`和`.`这两种状态。
 
 
 ## 解：
@@ -20,7 +20,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Arithmatic
+namespace TaskExercise
 {
     public class StringSimplifyPath
     {
@@ -48,7 +48,7 @@ namespace Arithmatic
                         item.Append('/');
                         dirStack.Push(item.ToString());
                     }
-                    else if(state != Dir.Sprit && state != Dir.Dot)
+                    else if (state != Dir.Sprit && state != Dir.Dot)
                     {
                         if (dirStack.Count > 1)
                         {
@@ -65,11 +65,11 @@ namespace Arithmatic
                     {
                         state = Dir.Double;
                     }
-                    else if(state == Dir.Double)
+                    else if (state == Dir.Double)
                     {
                         state = Dir.Char;
                     }
-                    else
+                    else if (state == Dir.Sprit)
                     {
                         state = Dir.Dot;
                     }
@@ -80,11 +80,21 @@ namespace Arithmatic
                     item.Append(path[i]);
                 }
             }
+            if (dirStack.Count == 1)
+            {
+                return dirStack.Peek();
+            }
             string lastStr = dirStack.Pop();
+            int len = lastStr.Length - 1;
+            if (lastStr[len] == '/')
+            {
+                lastStr = lastStr.Substring(0, len);
+            }
+            item.Append(lastStr);
             while (dirStack.Count != 0)
             {
                 item.Insert(0, dirStack.Pop());
-            }  
+            }
             return item.ToString();
         }
     }
