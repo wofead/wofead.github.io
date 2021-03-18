@@ -1,0 +1,73 @@
+---
+layout:     post
+title:      string
+subtitle:   C++
+date:       2019-8-31
+author:     Jow
+header-img: img/post-bg-infinity.jpg
+catalog: 	 true 
+tags:
+    - C++
+
+---
+
+### 目录
+1. string构造字符串
+2. string类输入
+3. 字符串的使用
+
+
+> study and think. then you will get more.
+
+
+## string构造字符串
+1. string(const char *s)：将string对象初始化为s指向的NBTS
+2. string(size_type n, char c):n个c
+3. string( const string & str):初始化为str(赋值构造函数）
+4. string():默认的string对象，长度为0
+5. string(const char *s, size_type n)：s的前n个字符。
+6. template<class Iter>  string(Iter begin,Iter end):将string初始化为[begin,end)内的字符，这两个一般都是指针。
+7. string<const string & str, size_type pos, size_type npos):将一个string对象初始化为对象str从pos位置开始到结尾，或者到npos。
+8. string(string && str) noexcept:它将一个string对象初始化为string对象str,并可能修改str。
+9. string(initializer_list<char> li):它将一个string对象初始化为列表li中的字符。
+
+
+```c++
+int main() {
+	string one("Lottery winner!");
+	string two(10, '$');
+	string three(one);
+	string four;
+	four = two + one;
+	char all[26] = "All's well that end well!";
+	string five(four, 10);
+	string six(all, all + 10);
+	string sixAnother(&all[2], &all[12]);
+	string eight(four, 2, 10);
+
+}
+```
+
+## string类输入
+一般使用getline的方式输入字符串到string中，getline和cin.getline的区别在于一个用于string，一个用于char数组，一个不会截断字符串，一个会。其中使用getline必须要带上头文件string。
+
+注意getline默认会抛弃掉换行符，但是cin.getline会把它留在输入队列中，当然在最后一个参数可以设置抛弃的尾。
+
+```c++
+char info[100];
+cin >> info;//read a word
+cin.getline(info, 100);//read a line,discard \n
+cin.get(info, 100);//read a line, leave \n in queue
+
+string stuff;
+cin >> stuff;
+getline(cin, stuff);//use inf string, and auto to calculate space
+cin.getline(info, 10,':');//only can use in char array,discard ':'
+getline(cin, stuff,':');//use in string,discard ':'
+
+```
+
+## 字符串的使用
+string::npos是字符串可以储存的最大字符数。
+* find(const &str, size_type n):从n开始寻找子串str，返回第一个字符的位置，否则返回string::nops的值。通用str可以是一个char数组指针。
+* 可以带第三个参数，这个时候第二个参数表示开始的位置，第三个参数表示结束寻找的位置。
