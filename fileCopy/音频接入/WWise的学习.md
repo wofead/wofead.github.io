@@ -37,8 +37,6 @@ WWise一共由5个组件构成：
 
 代表游戏单个声音的 Audio Object 完全由声音设计师在 Wwise 应用程序中创建和管理。而 Game Object 和 Listener（代表发送或接收音频的特定游戏元素）由程序员在游戏中创建和管理。最后两个部分（Event 和 Game Sync）用于驱动游戏中的音频。这两个组件在音频素材和游戏组件之间架起桥梁，因此是 Wwise 和游戏中都不可分割的一部分。
 
-![](https://www.audiokinetic.com/images/2019.1.6_7110/?source=WwiseFundamentalApproach&id=approach_01.png)
-
 ## WWise event
 Wwise 使用 Event（事件）驱动游戏中的音频。这些 Event 将 Action（动作）应用于工程层级结构中的不同声音对象或对象组。您选择的动作用于指定 Wwise 对象是否播放、停止、暂停等。
 
