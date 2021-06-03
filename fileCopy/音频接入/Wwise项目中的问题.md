@@ -19,3 +19,16 @@ Wwise Integration 库，`libAkSoundEngine.a，通常包含所有的调试符号�
 1. 在` Edit > Project Settings… > Audio` 中启用 `Disable Audio` 选项。内置的音频系统将因此被禁用。
 2. 若启用了 `"Create WwiseGlobal GameObject"` `Wwise Setting`，则在当前场景中创建一个名为 `Wwise Global `的游戏对象。`WwiseGlobal `对象是一个包含 `Wwise` 声音引擎 `Initializing` 和 `Terminating` 脚本的游戏对象。在 Editor 工作流中，会将其添加到每一场景，以便在 Editor 中正常预览。在游戏中，只会在第一个场景中创建一个实例。该实例将在整个游戏当中保持有效。在初始化器脚本中，有一些可自定义的选项。另外，还为 `WwiseGlobal` 对象提供有 `AkEditorEventPlayer`、`AkAudioListener` 和 `AkGameObj` 脚本，方便在 Edit 模式下预览 AkEvent对象。同时，还添加了 `Rigidbody `组件，便于预览 `AkEnvironment`、`AkRoom` 和 `AkGameObj`之间的交互。
 
+## ERROR: Error: ENOENT: no such file or directory, scandir 'C:\Documents and Settings\All Users\Start Menu\Programs'
+
+```bash
+npm rebuild node-sass
+```
+
+## Bank version 需要对应上
+
+要不然bank是加载不出来的。
+
+## 删除多余文件
+
+![img](../image/Wwise项目中的问题/19001619-1417458883ba7df2.png)
