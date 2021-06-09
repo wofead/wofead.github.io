@@ -145,3 +145,5 @@ cc.Class({
 
 注意前面步骤中添加 **Layout** 组件并不是必须的，**Layout** 能够帮助您自动排列列表中的节点元素，但您也可以用脚本程序来控制节点的排列。我们通常还会配合 **ScrollView** 滚动视图组件一起使用，以便在有限的空间内展示大量内容。可以配合 [自动布局](https://docs.cocos.com/creator/manual/zh/ui/auto-layout.html) 和 [滚动视图](https://docs.cocos.com/creator/manual/zh/ui/ui-components.html#scrollview) 一起学习。
 
+
+
