@@ -77,3 +77,7 @@ onLoad: function () {
 }
 ```
 
+# [CocosCreator Spine在场景编辑器实时预览](https://www.cnblogs.com/gamedaybyday/p/14776023.html)
+
+https://www.cnblogs.com/gamedaybyday/p/14776023.html
+
