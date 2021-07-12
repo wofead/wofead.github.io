@@ -6,9 +6,11 @@
 
 ## 坐标系分类
 
-
-
 我们的坐标系分为右手坐标系和左手坐标系，我是这么区分的，拿出右手，大拇指指向z轴正方向，手心法线方向和X正方向一致，握手指，手指指向y轴正方向为右手坐标系，相反，y轴负方向为左手坐标系。
+
+![unity-3d-coordinate-system.jpg](../image/unity的坐标系统/unity-3d-coordinate-system.jpg)
+
+除了 3D 世界中的坐标系，还有其他的几个坐标系也非常常用，比如我们经常要把世界三维坐标系转换成我们最终屏幕中的二维坐标系，或者把手机屏幕的二维坐标系转化成游戏世界中的三维坐标系等，各个坐标系各有特别，不能混用。
 
 ## 坐标体系
 
@@ -19,7 +21,7 @@ Unity3D 当中基本的坐标体系主要有下面这四种：
 3. 视口坐标系(Viewport Space)
 4. GUI界面坐标系(GUI System)
 
-![](http://liuqingwen.me/blog/2017/07/31/understanding-coordinate-system-in-unity3d/Blog-unity-coordinate-all.jpg)
+![Blog-unity-coordinate-all.jpg](../image/unity的坐标系统/Blog-unity-coordinate-all.jpg)
 
 ### GUI界面的坐标体系
 
@@ -37,7 +39,7 @@ private void OnGUI()
 
 它的原点 `(0, 0)` 在最左上角，因为屏幕宽度是 `Screen.width` ，高度是 `Screen.height` ，所以 GUI 体系右下角的坐标为： `(Screen.width, Screen.height)` 。
 
-![unity-gui-coordinate-a.jpg](http://liuqingwen.me/blog/2017/07/31/understanding-coordinate-system-in-unity3d/unity-gui-coordinate-a.jpg)
+![unity-gui-coordinate-a.jpg](../image/unity的坐标系统/unity-gui-coordinate-a.jpg)
 
 ### 视口viewport坐标体系
 
@@ -45,7 +47,13 @@ private void OnGUI()
 
 视口坐标系对于场景的显示非常重要，对于新手来说，我们经常使用一个相机就够了，但是当需要使用到多个视口的时候，就必须关注视口坐标系了，大家可以在相机Camera的属性中看到Viewport Rect就是视口坐标系的设置。
 
-一个相机对应一个视口，视口预览（ Camera Preview ）展示了相机所看到的所有物体，很显然，它默认大小是 `(width = 1, height = 1)` ，位置也是从 0 到 1 ，这个位置就是我们所讨论的坐标系：左下角为 `(0, 0)` ，右上角是 `(1, 1)` 。
+![unity-viewport-coordinate2.jpg](../image/unity的坐标系统/unity-viewport-coordinate2-a.jpg)
+
+一个相机对应一个视口，视口预览（ Camera Preview ）展示了相机所看到的所有物体，很显然，它默认大小是 `(width = 1, height = 1)` ，位置也是从 0 到 1 ，这个位置就是我们所讨论的坐标系：左下角为 `(0, 0)` ，右上角是 `(1, 1)` 。，一般视口坐标系主要用在相机显示中，我们简单的进行 `Viewport Rect` 的设置就可以了。
+
+ `Ctrl + Shift + F` ，可以快速设置相机视口到当前场景窗口的视口位置。下图是视口坐标系和鼠标在屏幕上的坐标系的转换结果：
+
+![unity-viewport-coordinate1.jpg](../image/unity的坐标系统/unity-viewport-coordinate1-a.jpg)
 
 ## 屏幕Screen坐标系
 
