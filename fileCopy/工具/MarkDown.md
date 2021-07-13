@@ -377,7 +377,7 @@ public void Main()
 ![图片名称可省略.jpg](https://aihailan.com/wp-content/uploads/2020/11/post-1037-5fbd17aed9abf.)
 ```
 
-![图片名称可省略.jpg](../image/MarkDown/post-1037-5fbd17aed9abf.)
+![图片名称可省略.jpg](../image/MarkDown/post-1037-5fbd17aed9abf.png)
 
 ------
 
