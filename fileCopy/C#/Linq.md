@@ -326,7 +326,7 @@ var result = ints.Where(p => p % 2 == 0).ToArray();
 3. 大部分方法语法都有对应的查询表达式语法形式：如Select()对应select、OrderBy()对应orderby
 4. 部分查询方法目前在C#中还没有对应的查询语句：如Count()和Max()，这是只能采用以下替代方案：
    　　方法语法
-   　　查询表达式语法+方法语法的混合方式
+      　　查询表达式语法+方法语法的混合方式
 
 ## Lambda表达式解剖
 
@@ -887,4 +887,1368 @@ namespace SelectMany操作符
     }
 }
 ```
+
+#### 第一种用法：
+
+```c#
+public static IEnumerable<TResult> SelectMany<TSource, TResult>(this IEnumerable<TSource> source, Func<TSource, IEnumerable<TResult>> selector);
+```
+
+官方释义：将序列的每个元素投影到 IEnumerable<TResult> 并将结果序列合并为一个序列。
+
+在这里，SelectMany的作用就是：将personList集合对象的每个元素（每个Teacher实例对象，如名为“T1”，“T2”，“T3”）
+
+映射到每个Teacher类对应的Student集合（如名为“T1”对应Student名为S1及S2的Student集合），
+
+并将每个Teacher类对应Student的集合重新组合成一个大的Student集合。
+
+```c#
+ var students = from t in teacherList
+            from s in p.Students
+            select s;
+```
+
+#### 第二种用法
+
+```c#
+public static IEnumerable<TResult> SelectMany<TSource, TResult>(this IEnumerable<TSource> source, Func<TSource, int, IEnumerable<TResult>> selector);
+```
+
+官方释义：将序列的每个元素投影到 IEnumerable<TResult>，并将结果序列合并为一个序列。每个源元素的索引用于该元素的投影表。
+
+其实，就是比第一种使用方法多一个索引而已，该索引是从0开始，针对的是TSource指定类型的集合，最大索引值为TSource个数-1。
+
+我们将第一种客户端试验代码中的:
+
+```c#
+var studentss = teacherList.SelectMany(t => t.Students);
+```
+
+修改为：
+
+```c#
+var students = teacherList.SelectMany((t, i) => 
+    t.Students.Select( s=>
+    {
+        s.Name = $"{i},{s.Name}";
+        return s;
+    }));
+```
+
+以上方法仅仅是把索引值加到Student类的Name属性上。
+
+#### 第三种方法：
+
+```
+public static IEnumerable<TResult> SelectMany<TSource, TCollection, TResult>(this IEnumerable<TSource> source, Func<TSource, IEnumerable<TCollection>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector);
+```
+
+官方释义：将序列的每个元素投影到 IEnumerable<TCollection>，并将结果序列合并为一个序列，并对其中每个元素调用结果选择器函数。
+
+这个用法，跟第一种用法相比，就是可以对已合成一个大集合的每个元素调用结果选择器，返回自己想要的集合类型。
+
+#### 第四种用法：
+
+```
+public static IEnumerable<TResult> SelectMany<TSource, TCollection, TResult>(this IEnumerable<TSource> source, Func<TSource, int, IEnumerable<TCollection>> collectionSelector, Func<TSource, TCollection, TResult> resultSelector);
+```
+
+官方释义：将序列的每个元素投影到 IEnumerable<TCollection>，并将结果序列合并为一个序列，并对其中每个元素调用结果选择器函数。每个源元素的索引用于该元素的中间投影表。
+
+其实，就是比第三种使用方法多一个索引而已，该索引是从0开始，针对的是TSource指定类型的集合，最大索引值为TSource个数-1。
+
+### Where
+
+where是限制操作符，它将过滤标准应用在序列上，按照提供的逻辑对序列中的数据进行过滤。
+
+where操作符不启动查询的执行。当开始对序列进行遍历时才开始执行，此时过滤条件将被应用到查询中。
+
+```c#
+//where限制操作符：使用延迟加载
+var q = teachers.SelectMany(p => p.Students).Where(s => s.Score < 60).Select(a => new { name = a.Name });
+foreach (var item in q)
+{
+     Console.WriteLine("姓名:"+item.name);
+}
+```
+
+
+
+**示例**
+在写项目的时候看到了一段比较有意思的单例.如下图：
+
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+/// <summary>
+/// 单例模型
+/// </summary>
+/// <typeparam name="T">模板</typeparam>
+public class MonoSingleton<T> : MonoBehaviour where T :Component
+{
+    private static T _instance;
+
+    private static readonly object _lock = new object();
+
+    public static T Instance
+    {
+        get
+        {
+            if(_instance == null)
+            {
+                lock (_lock)
+                {
+                    _instance = FindObjectOfType<T>();
+                    if(_instance == null)
+                    {
+                        GameObject obj = new GameObject("TempObj");
+                        _instance = obj.AddComponent<T>();
+                    }
+                }
+            }
+            return _instance;
+        }
+    }
+}
+```
+
+其中有一段我很好奇：
+
+```c#
+public class MonoSingleton<T> : MonoBehaviour where T :Component
+```
+
+后来我打算去找答案，东西很久没有用都忘了什么作用了。
+
+**where 在SQL语句中是限制条件的意思 **
+
+```sql
+select column_name ,column_name form table_name WHERE column_name operator value;
+```
+
+**where在C# 指的是约束**
+
+为什么要使用约束？官方给的解释是：
+
+使用约束的原因:
+
+约束指定类型参数的功能和预期。 声明这些约束意味着你可以使用约束类型的操作和方法调用。 如果泛型类或方法对泛型成员使用除简单赋值之外的任何操作或调用 System.Object 不支持的任何方法，则必须对类型参数应用约束。 例如，基类约束告诉编译器，仅此类型的对象或派生自此类型的对象可用作类型参数。 编译器有了此保证后，就能够允许在泛型类中调用该类型的方法。 以下代码示例演示可通过应用基类约束添加到（泛型介绍中的）GenericList<T> 类的功能。
+
+**为了验证一下，我将where 后面的** `where T :Component`这一部分删除，发现
+
+```c#
+_instance = FindObjectOfType<T>();
+//提示是：类型“T”不能用作泛型类型或方法“Object.FindObjectOfType<T>()"中的类型参数”T“.
+//没有从”T“到”UnityEngine.Object"装箱转换或者类型参数转换
+```
+
+第一反应是有点懵，官方 指的 和这个有什么关系嘛,约定指定类型参数的功能和预期。
+
+```c#
+//在 Object 中找到了该方法
+ public static T FindObjectOfType<T>() where T : Object;
+```
+
+用我目前理解到了东西来说，应该是 要求 泛型T 是继承自 Object 的，才可以使用 FindObjectOfType<T>() 这个函数 ，我认为`Component`必须也是集成Object的，所以才能够使用这个函数。
+
+```c#
+//在Component 类中找到了这个 
+public class Component : Object
+```
+
+简单的说就是，还是直接用官方的说法：
+
+约束告知编译器类型参数必须具备的功能。 在没有任何约束的情况下，类型参数可以是任何类型。 编译器只能假定 System.Object 
+
+#### where 子句用于指定类型约束，这些约束可以作为泛型声明中定义的类型参数的变量。
+
+---
+
+**接口约束：**
+
+ 例如，可以声明一个泛型类 `MyGenericClass`，这样，类型参数 `T` 就可以实现 `IComparable<T>` 接口：
+
+```c#
+public class MyGenericClass<T> where T:IComparable { }
+```
+
+---
+
+**基类约束：**指出某个类型必须将指定的类作为基类（或者就是该类本身），才能用作该泛型类型的类型参数。
+
+ 这样的约束一经使用，就必须出现在该类型参数的所有其他约束之前。
+
+```c#
+class MyClassy<T, U>
+ where T : class
+ where U : struct
+{
+}
+```
+
+---
+
+**where 子句还可以包括构造函数约束。**
+
+可以使用 new 运算符创建类型参数的实例；但类型参数为此必须受构造函数约束 new() 的约束。new() 约束可以让编译器知道：提供的任何类型参数都必须具有可访问的无参数（或默认）构造函数。例如：
+
+```c#
+public class MyGenericClass <T> where T: IComparable, new()
+{
+ // The following line is not possible without new() constraint:
+ T item = new T();
+}
+```
+
+new() 约束出现在 where 子句的最后。
+
+---
+
+**对于多个类型参数，每个类型参数都使用一个 where 子句**
+
+```c#
+interface MyI { }
+class Dictionary<TKey,TVal>
+where TKey: IComparable, IEnumerable
+where TVal: MyI
+{
+ public void Add(TKey key, TVal val)
+ {
+ }
+}
+```
+
+---
+
+**还可以将约束附加到泛型方法的类型参数**
+
+```c#
+public bool MyMethod<T>(T t) where T : IMyInterface { }
+```
+
+请注意，对于委托和方法两者来说，描述类型参数约束的语法是一样的：
+
+```c#
+delegate T MyDelegate<T>() where T : new()
+```
+
+---
+
+#### 总结
+
+* where T : struct 这表明T必须是一个值类型，像是int,decimal这样的
+* where T : class 这表明T必须是一个引用类型，像是自定义的类、接口、委托等
+* where T : new() 这表明T必须有无参构造函数，且如果有多个where约束，new()放在最后面
+* where T : [base class name] 这表明T必须是base class类获其派生类
+* where T : [interface name] 这表明T必须实现了相应的接口
+
+### 排序操作符 :OrderBy、OrderByDescending、ThenBy、ThenByDescending和Reverse
+
+Linq中的排序操作符包括OrderBy、OrderByDescending、ThenBy、ThenByDescending和Reverse，提供了升序或者降序排序。
+
+![img](https://images2015.cnblogs.com/blog/1033738/201705/1033738-20170513230144551-636647658.png)
+
+#### OrderBy操作符
+
+OrderBy操作符用于对输入序列中的元素进行排序，排序基于一个委托方法的返回值顺序。排序过程完成后，会返回一个类型为IOrderEnumerable<T>的集合对象。其中IOrderEnumerable<T>接口继承自IEnumerable<T>接口。下面来看看OrderBy的定义：![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180711205316097-1173206047.png)
+
+从上面的截图中可以看出，OrderBy是一个扩展方法，只要实现了IEnumerable<T>接口的就可以使用OrderBy进行排序。OrderBy共有两个重载方法：第一个重载的参数是一个委托类型和一个实现了IComparer<T>接口的类型。第二个重载的参数是一个委托类型。看看下面的示例：
+
+Product类：
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace OrderOperation
+{
+    public class Products
+    {
+        public int Id { get; set; }
+        public int CategoryId { get; set; }
+        public string Name { get; set; }
+        public double Price { get; set; }
+        public DateTime CreateTime { get; set; }
+    }
+}
+```
+
+在Main调用：
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace OrderOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // 初始化数据
+            List<Products> listProduct = new List<Products>()
+            {
+               new Products(){Id=1,CategoryId=1, Name="C#高级编程第10版", Price=100.67,CreateTime=DateTime.Now},
+               new Products(){Id=2,CategoryId=1, Name="Redis开发和运维", Price=69.9,CreateTime=DateTime.Now.AddDays(-19)},
+               new Products(){Id=3,CategoryId=1, Name="ASP.NET Core", Price=57,CreateTime=DateTime.Now.AddMonths(-3)},
+               new Products(){Id=4,CategoryId=1, Name="Entity Framework 6.x", Price=97,CreateTime=DateTime.Now.AddMonths(-1)}
+            };
+            Console.WriteLine("方法语法");
+            // 1、查询方法，返回匿名类
+            var list = listProduct.OrderBy(p => p.CreateTime).Select(p => new { id = p.Id, ProductName = p.Name,ProductPrice=p.Price,PublishTime=p.CreateTime }).ToList();
+            foreach (var item in list)
+            {
+                Console.WriteLine($"item:{item}");
+            }
+            Console.WriteLine("查询表达式");
+            // 2、查询表达式,返回匿名类
+            var listExpress = from p in listProduct orderby p.CreateTime select new { id = p.Id, ProductName = p.Name, ProductPrice = p.Price, PublishTime = p.CreateTime };
+            foreach (var item in listExpress)
+            {
+                Console.WriteLine($"item:{item}");
+            }
+
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+结果：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180711210942029-2086879099.png)
+
+从截图中可以看出，集合按照CreateTime进行升序排序。
+
+在来看看第一个重载方法的实现：
+
+先定义PriceComparer类实现IComparer<T>接口，PriceComparer类定义如下：
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace OrderOperation
+{
+    public class PriceComparer : IComparer<double>
+    {
+        public int Compare(double x, double y)
+        {
+            if (x > y)
+            {
+                return 1;     //表示x>y
+            }
+            else if (x < y)
+            {
+                return -1;    //表示x<y
+            }
+            else
+            {
+                return 0;     //表示x=y
+            }
+        }
+    }
+}
+```
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace OrderOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // 初始化数据
+            List<Products> listProduct = new List<Products>()
+            {
+               new Products(){Id=1,CategoryId=1, Name="C#高级编程第10版", Price=100.67,CreateTime=DateTime.Now},
+               new Products(){Id=2,CategoryId=1, Name="Redis开发和运维", Price=69.9,CreateTime=DateTime.Now.AddDays(-19)},
+               new Products(){Id=3,CategoryId=1, Name="ASP.NET Core", Price=57,CreateTime=DateTime.Now.AddMonths(-3)},
+               new Products(){Id=4,CategoryId=1, Name="Entity Framework 6.x", Price=97,CreateTime=DateTime.Now.AddMonths(-1)}
+            };
+            Console.WriteLine("方法语法");
+            // 1、查询方法，按照价格升序排序,返回匿名类
+            var list = listProduct.OrderBy(p => p.Price,new PriceComparer()).Select(p => new { id = p.Id, ProductName = p.Name, ProductPrice = p.Price, PublishTime = p.CreateTime }).ToList();
+            foreach (var item in list)
+            {
+                Console.WriteLine($"item:{item}");
+            }
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+结果：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180711212058280-863719282.png)
+
+注意：orderby必须在select之前出现,查询表达式最后只可能出现select或者groupby。
+
+#### OrderByDescending
+
+OrderByDescending操作符的功能与OrderBy操作符基本相同，二者只是排序的方式不同。OrderBy是升序排序，而OrderByDescending则是降序排列。下面看看OrderByDescending的定义：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180711212740062-1777318257.png)
+
+从方法定义中可以看出，OrderByDescending的方法重载和OrderBy的方法重载一致。
+
+#### ThenBy排序
+
+ThenBy操作符可以对一个类型为IOrderedEnumerable<T>,(OrderBy和OrderByDesceding操作符的返回值类型)的序列再次按照特定的条件顺序排序。ThenBy操作符实现按照次关键字对序列进行升序排列。下面来看看ThenBy的定义：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180711215149459-1257243984.png)
+
+从截图中可以看出：ThenBy()方法扩展的是IOrderedEnumerable<T>，因此ThenBy操作符长常常跟在OrderBy和OrderByDesceding之后。
+
+#### ThenByDescending
+
+ThenByDescending操作符于ThenBy操作符非常类似，只是是按照降序排序，实现按照次关键字对序列进行降序排列。来看看ThenByDescending的定义：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180711221344615-784273819.png)
+
+从截图中可以看出：ThenByDescending()方法扩展的是IOrderedEnumerable<T>，因此ThenByDescending操作符也是常常跟在OrderBy和OrderByDesceding之后。
+
+#### Reverse
+
+Reverse操作符用于生成一个与输入序列中元素相同，但元素排列顺序相反的新序列。下面来看看Reverse()方法的定义：
+
+```c#
+public static IEnumerable<TSource> Reverse<TSource>(this IEnumerable<TSource> source)
+```
+
+ 
+
+从方法定义中可以看到，这个扩展方法，不需要输入参数，返回一个新集合。需要注意的是，Reverse方法的返回值是void。
+
+### 连接操作符Join()和GroupJoin()
+
+#### Join()操作符
+
+Join()操作符非常类似于T-SQL中的inner join，它将两个数据源进行连接，根据两个数据源中相等的值进行匹配。例如：可以将产品表和产品类别表进行连接，得到产品名称和与其对应的类型名称。下面看看Join()方法的定义：
+
+```c#
+public static IEnumerable<TResult> Join<TOuter, TInner, TKey, TResult>(this IEnumerable<TOuter> outer, IEnumerable<TInner> inner, Func<TOuter, TKey> outerKeySelector, Func<TInner, TKey> innerKeySelector, Func<TOuter, TInner, TResult> resultSelector);
+public static IEnumerable<TResult> Join<TOuter, TInner, TKey, TResult>(this IEnumerable<TOuter> outer, IEnumerable<TInner> inner, Func<TOuter, TKey> outerKeySelector, Func<TInner, TKey> innerKeySelector, Func<TOuter, TInner, TResult> resultSelector, IEqualityComparer<TKey> comparer);
+```
+
+从Join()方法的定义中可以看到：Join操作符的方法原型非常复杂，参数outer和inner是需要连接输入集合。其中outer代表的是调用的集合。当Join操作符被调用时，首先举inner序列中的所有元素，为序列中每一个类型为U的元素调用委托InnerKeySelector，生成一个类型为K的的对象innerKey作为连接关键字。(相当于数据库中的外键)，将inner序列中的每一个元素和其对应的连接关键字innerKey存储在一个临时哈希表中；其次列举outer序列中的所有元素，为每一个类型为T的元素调用委托outerKeySelector，生成一个类型为K的对象outKey用作连接关键字，在第一步生成的临时哈希表中查找与outKey相等的对应的innerKey对象，如果找到对应的记录，会将当前outer序列中的类型为T的元素和对应的inner序列中类型为U的元素作为一组参数传递给委托resultSelector，resultSelector会根据这两个参数返回一个类型为V的对象，此类型为V的对象会被添加到Join操作符的输出结果序列中去。Join操作符返回一个类型为IEnumerable<T>的序列。来看下面的例子：
+
+Category：
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ConnectOperation
+{
+    public class Category
+    {
+        public int Id { get; set; }
+        public string CategoryName { get; set; }
+
+        public DateTime CreateTime { get; set; }
+    }
+}
+```
+
+ Product：
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ConnectOperation
+{
+    public class Product
+    {
+        public int Id { get; set; }
+        public int CategoryId { get; set; }
+        public string Name { get; set; }
+        public double Price { get; set; }
+        public DateTime CreateTime { get; set; }
+    }
+}
+```
+
+在Main()方法中调用：
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ConnectOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // 初始化数据
+            List<Category> listCategory = new List<Category>()
+            {
+              new Category(){ Id=1,CategoryName="计算机",CreateTime=DateTime.Now.AddYears(-1)},
+              new Category(){ Id=2,CategoryName="文学",CreateTime=DateTime.Now.AddYears(-2)},
+              new Category(){ Id=3,CategoryName="高校教材",CreateTime=DateTime.Now.AddMonths(-34)},
+              new Category(){ Id=4,CategoryName="心理学",CreateTime=DateTime.Now.AddMonths(-34)}
+            };
+            List<Product> listProduct = new List<Product>()
+            {
+               new Product(){Id=1,CategoryId=1, Name="C#高级编程第10版", Price=100.67,CreateTime=DateTime.Now},
+               new Product(){Id=2,CategoryId=1, Name="Redis开发和运维", Price=69.9,CreateTime=DateTime.Now.AddDays(-19)},
+               new Product(){Id=3,CategoryId=2, Name="活着", Price=57,CreateTime=DateTime.Now.AddMonths(-3)},
+               new Product(){Id=4,CategoryId=3, Name="高等数学", Price=97,CreateTime=DateTime.Now.AddMonths(-1)},
+               new Product(){Id=5,CategoryId=6, Name="国家宝藏", Price=52.8,CreateTime=DateTime.Now.AddMonths(-1)}
+            };
+
+            // 1、查询表达式
+            var queryExpress = from c in listCategory
+                               join p in listProduct on c.Id equals p.CategoryId
+                               select new { Id = c.Id, CategoryName = c.CategoryName, ProductName = p.Name, PublishTime = p.CreateTime };
+            Console.WriteLine("查询表达式输出:");
+            foreach (var item in queryExpress)
+            {
+                Console.WriteLine($"id:{item.Id},CategoryName:{item.CategoryName},ProductName:{item.ProductName},PublishTime:{item.PublishTime}");
+            }
+            Console.WriteLine("方法语法输出:");
+            // 方法语法
+            var queryFun = listCategory.Join(listProduct, c => c.Id, p => p.CategoryId, (c, p) => new { Id = c.Id, CategoryName = c.CategoryName, ProductName = p.Name, PublishTime = p.CreateTime });
+            foreach (var item in queryFun)
+            {
+                Console.WriteLine($"id:{item.Id},CategoryName:{item.CategoryName},ProductName:{item.ProductName},PublishTime:{item.PublishTime}");
+            }
+
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+ 结果：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180714092650723-80315389.png)
+
+从结果中可以看出：Join()操作符只会输出两个结合中相同的元素，和T-SQL中的inner join类似。
+
+在T-SQL中除了内连接以外，还有左连接和右连接，那么使用Join()是不是也可以实现左连接和右连接呢？请看下面的例子。
+
+使用Join()实现左连接。
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ConnectOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // 初始化数据
+            List<Category> listCategory = new List<Category>()
+            {
+              new Category(){ Id=1,CategoryName="计算机",CreateTime=DateTime.Now.AddYears(-1)},
+              new Category(){ Id=2,CategoryName="文学",CreateTime=DateTime.Now.AddYears(-2)},
+              new Category(){ Id=3,CategoryName="高校教材",CreateTime=DateTime.Now.AddMonths(-34)},
+              new Category(){ Id=4,CategoryName="心理学",CreateTime=DateTime.Now.AddMonths(-34)}
+            };
+            List<Product> listProduct = new List<Product>()
+            {
+               new Product(){Id=1,CategoryId=1, Name="C#高级编程第10版", Price=100.67,CreateTime=DateTime.Now},
+               new Product(){Id=2,CategoryId=1, Name="Redis开发和运维", Price=69.9,CreateTime=DateTime.Now.AddDays(-19)},
+               new Product(){Id=3,CategoryId=2, Name="活着", Price=57,CreateTime=DateTime.Now.AddMonths(-3)},
+               new Product(){Id=4,CategoryId=3, Name="高等数学", Price=97,CreateTime=DateTime.Now.AddMonths(-1)},
+               new Product(){Id=5,CategoryId=6, Name="国家宝藏", Price=52.8,CreateTime=DateTime.Now.AddMonths(-1)}
+            };
+            // 1、使用查询表达式实现左连接
+            var listLeft = from c in listCategory
+                           join p in listProduct on c.Id equals p.CategoryId
+                           into cpList
+                           from cp in cpList.DefaultIfEmpty()
+                           select new
+                           {
+                               Id = c.Id,
+                               CategoryName = c.CategoryName,
+                               ProductName = cp == null ? "无产品名称" : cp.Name,
+                               PublishTime = cp == null ? "无创建时间" : cp.CreateTime.ToString()
+                           };
+            foreach (var item in listLeft)
+            {
+                Console.WriteLine($"id:{item.Id},CategoryName:{item.CategoryName},ProductName:{item.ProductName},PublishTime:{item.PublishTime}");
+            }
+
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+结果：
+
+ ![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180714093917270-153963301.png)
+
+从结果中可以看出：左表listCategory中的数据全部输出了，listCategory中分类为4的在listProduct中没有对应的产品记录，所以该项的ProductName和PublishTime输出为空。
+
+注意：
+
+在左连接中，有可能右表中没有对应的记录，所以使用Select投影操作符的时候要注意判断是否为null，否则程序会报错.
+
+使用方法语法实现左连接要使用下面要讲的GroupJoin()，所以使用方法语法实现左连接放到GroupJoin()中进行讲解。
+
+右连接
+
+其实实现右连接只需要将上面例子中的左表和右边换一下顺序即可。
+
+注意：
+
+**在右连接中也需要和左连接一样进行null值的判断。**
+
+#### GroupJoin()操作符
+
+GroupJoin()操作符常用于返回“主键对象-外键对象集合”形式的查询，例如“产品类别-此类别下的所有产品”。
+
+GroupJoin操作符也用于连接两个输入序列，但与Join操作符不同稍有不同，Join操作符在列举outer序列元素时，会将一个outer序列元素和其对应的inner序列元素作为一组参数传递给委托resultSelector委托，这就意味着如果某一个outer序列元素有多个对应的inner序列元素，Join操作符将会分多次将outer序列元素和每一个对应的inner序列元素传递给委托resultSelector。使用GroupJoin操作符时，如果某一个outer序列元素有多个对应的inner序列元素，那么这多个对应的inner序列元素会作用一个序列一次性传递给委托resultSelecotr，可以针对此序列添加一些处理逻辑。下面看看GroupJoin()操作符的定义：
+
+```c#
+public static IEnumerable<TResult> GroupJoin<TOuter, TInner, TKey, TResult>(this IEnumerable<TOuter> outer, IEnumerable<TInner> inner, Func<TOuter, TKey> outerKeySelector,
+ Func<TInner, TKey> innerKeySelector, Func<TOuter, IEnumerable<TInner>, TResult> resultSelector);
+public static IEnumerable<TResult> GroupJoin<TOuter, TInner, TKey, TResult>(this IEnumerable<TOuter> outer, IEnumerable<TInner> inner, Func<TOuter, TKey> outerKeySelector,
+Func<TInner, TKey> innerKeySelector, Func<TOuter, IEnumerable<TInner>, TResult> resultSelector, IEqualityComparer<TKey> comparer);
+```
+
+留意变红的那个委托，注意，与Join操作符的不同点就是一个outer序列中如果有多个对应的inner序列元素，会作为一个集合IEnumerable<TInner>传递到此委托。
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ConnectOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // 初始化数据
+            List<Category> listCategory = new List<Category>()
+            {
+              new Category(){ Id=1,CategoryName="计算机",CreateTime=DateTime.Now.AddYears(-1)},
+              new Category(){ Id=2,CategoryName="文学",CreateTime=DateTime.Now.AddYears(-2)},
+              new Category(){ Id=3,CategoryName="高校教材",CreateTime=DateTime.Now.AddMonths(-34)},
+              new Category(){ Id=4,CategoryName="心理学",CreateTime=DateTime.Now.AddMonths(-34)}
+            };
+            List<Product> listProduct = new List<Product>()
+            {
+               new Product(){Id=1,CategoryId=1, Name="C#高级编程第10版", Price=100.67,CreateTime=DateTime.Now},
+               new Product(){Id=2,CategoryId=1, Name="Redis开发和运维", Price=69.9,CreateTime=DateTime.Now.AddDays(-19)},
+               new Product(){Id=3,CategoryId=2, Name="活着", Price=57,CreateTime=DateTime.Now.AddMonths(-3)},
+               new Product(){Id=4,CategoryId=3, Name="高等数学", Price=97,CreateTime=DateTime.Now.AddMonths(-1)},
+               new Product(){Id=5,CategoryId=6, Name="国家宝藏", Price=52.8,CreateTime=DateTime.Now.AddMonths(-1)}
+            };
+
+            // 使用GroupJoin()实现左连接
+            var listLeftFun = listCategory.GroupJoin(listProduct, c => c.Id, p => p.CategoryId, (c, listp) => listp.DefaultIfEmpty(new Product()).Select(z =>
+                 new
+                 {
+                     Id = c.Id,
+                     CategoryName = c.CategoryName,
+                     ProduceName = z.Name,
+                     ProductPrice = z.Price
+                 })).ToList();
+            foreach (var item in listLeftFun)
+            {
+                foreach (var p in item)
+                {
+                    Console.WriteLine($"CategoryId:{p.Id},CategoryName:{p.CategoryName},ProduceName:{p.ProduceName},ProductPrice:{p.ProductPrice}");
+                }
+            }
+            Console.ReadKey();
+        }
+
+    }
+}
+```
+
+ 结果：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180714101029810-1695699685.png)
+
+结果可以看出：使用GroupJoin()操作符可以用Lambda表达式实现左连接。
+
+右连接
+
+只需要调整上面例子中两张表的顺序即可。
+
+### 分组操作符GroupBy
+
+```c#
+public static IEnumerable<IGrouping<TKey, TSource>> GroupBy<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector);
+public static IEnumerable<IGrouping<TKey, TSource>> GroupBy<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, 
+IEqualityComparer<TKey> comparer);
+```
+
+从方法定义中可以看出：GroupBy的返回值类型是：IEnumerable<IGrouping<TKey, TSource>>。其元素类型是IGrouping<TKey, TSource>。TKey属性代表了分组时使用的关键值，TSource属性代表了分组之后的元素集合。遍历IGrouping<TKey, TSource>元素可以读取到每一个TSource类型。看下面的例子：
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace GroupOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            List<Product> listProduct = new List<Product>()
+            {
+               new Product(){Id=1,CategoryId=1, Name="C#高级编程第10版", Price=100.67,CreateTime=DateTime.Now},
+               new Product(){Id=2,CategoryId=1, Name="Redis开发和运维", Price=69.9,CreateTime=DateTime.Now.AddDays(-19)},
+               new Product(){Id=3,CategoryId=2, Name="活着", Price=57,CreateTime=DateTime.Now.AddMonths(-3)},
+               new Product(){Id=4,CategoryId=3, Name="高等数学", Price=97,CreateTime=DateTime.Now.AddMonths(-1)},
+               new Product(){Id=5,CategoryId=6, Name="国家宝藏", Price=52.8,CreateTime=DateTime.Now.AddMonths(-1)}
+            };
+
+            // 查询表达式
+            var listExpress = from p in listProduct group p by p.CategoryId;
+            Console.WriteLine("输出查询表达式结果");
+            foreach (var item in listExpress)
+            {
+                Console.WriteLine($"CategoryId:{item.Key}");
+                foreach(var p in item)
+                {
+                    Console.WriteLine($"ProduceName:{p.Name},ProductPrice:{p.Price},PublishTime:{p.CreateTime}");
+                }
+            }
+            Console.WriteLine("***************************************");
+            // 查询方法
+            var listFun = listProduct.GroupBy(p => p.CategoryId);
+            Console.WriteLine("输出方法语法结果");
+            foreach (var item in listFun)
+            {
+                Console.WriteLine($"CategoryId:{item.Key}");
+                foreach (var p in item)
+                {
+                    Console.WriteLine($"ProduceName:{p.Name},ProductPrice:{p.Price},PublishTime:{p.CreateTime}");
+                }
+            }
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+ 结果：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180714111320891-2053785757.png)
+
+ 下面在来看看多个分组条件的例子。
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace GroupOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            List<Product> listProduct = new List<Product>()
+            {
+               new Product(){Id=1,CategoryId=1, Name="C#高级编程第10版", Price=100.67,CreateTime=DateTime.Now},
+               new Product(){Id=2,CategoryId=1, Name="Redis开发和运维", Price=69.9,CreateTime=DateTime.Now.AddDays(-19)},
+               new Product(){Id=3,CategoryId=2, Name="活着", Price=57,CreateTime=DateTime.Now.AddMonths(-3)},
+               new Product(){Id=4,CategoryId=3, Name="高等数学", Price=97,CreateTime=DateTime.Now.AddMonths(-1)},
+               new Product(){Id=5,CategoryId=6, Name="国家宝藏", Price=52.8,CreateTime=DateTime.Now.AddMonths(-1)}
+            };
+
+            // 查询表达式
+            var list = from p in listProduct group p by new { p.CategoryId, p.Price };
+            Console.WriteLine("查询表达式方式1输出：");
+            foreach (var item in list)
+            {
+                Console.WriteLine("key:" + item.Key);
+                foreach (var subItem in item)
+                {
+                    Console.WriteLine($"ProduceName:{subItem.Name},ProductPrice:{subItem.Price},PublishTime:{subItem.CreateTime}");
+                }
+            }
+            var listExpress = from p in listProduct
+                              group p by new { p.CategoryId, p.Price } into r  // 使用into把数据填充到局部变量r中，然后select筛选数据
+                              select new { key = r.Key, ListGroup = r.ToList() };
+            Console.WriteLine("查询表达式方式2输出：");
+            foreach(var item in listExpress)
+            {
+                Console.WriteLine("key:"+item.key);
+                foreach (var subItem in item.ListGroup)
+                {
+                    Console.WriteLine($"ProduceName:{subItem.Name},ProductPrice:{subItem.Price},PublishTime:{subItem.CreateTime}");
+                }
+            }
+
+            // 方法语法
+            var listFun = listProduct.GroupBy(p => new { p.CategoryId, p.Price }).Select(g => new { key = g.Key, ListGroup = g.ToList() });
+            Console.WriteLine("方法语法输出：");
+            foreach (var item in listFun)
+            {
+                Console.WriteLine("key:" + item.key);
+                foreach (var subItem in item.ListGroup)
+                {
+                    Console.WriteLine($"ProduceName:{subItem.Name},ProductPrice:{subItem.Price},PublishTime:{subItem.CreateTime}");
+                }
+            }
+
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+结果：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180714113821728-706074421.png)
+
+ 
+
+### 串联操作符
+
+串联是一个将两个集合连接在一起的过程。在Linq中，这个过程通过Concat操作符实现。Concat操作符用于连接两个集合，生成一个新的集合。来看看Concat操作符的定义：
+
+```c#
+ public static IEnumerable<TSource> Concat<TSource>(this IEnumerable<TSource> first, IEnumerable<TSource> second)
+```
+
+ 从方法定义中可以看出：第二个参数为输入一个新的集合，与调用集合连接，生成并返回一个新的集合。
+
+注意：
+
+第一个集合和第二个集合的元素的类型必须是相同的。
+
+请看下面的例子：
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace SeriesOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // 初始化数据
+            List<Category> listCategory = new List<Category>()
+            {
+              new Category(){ Id=1,CategoryName="计算机",CreateTime=DateTime.Now.AddYears(-1)},
+              new Category(){ Id=2,CategoryName="文学",CreateTime=DateTime.Now.AddYears(-2)},
+              new Category(){ Id=3,CategoryName="高校教材",CreateTime=DateTime.Now.AddMonths(-34)},
+              new Category(){ Id=4,CategoryName="心理学",CreateTime=DateTime.Now.AddMonths(-34)}
+            };
+
+            List<Category> list = new List<Category>()
+            {
+              new Category(){ Id=5,CategoryName="管理类",CreateTime=DateTime.Now.AddDays(-34)},
+              new Category(){ Id=6,CategoryName="金融学",CreateTime=DateTime.Now.AddYears(-4)}
+            };
+
+            // 查询表达式
+            var newListExpress = (from c in listCategory select c).Concat(from p in list select p);
+            Console.WriteLine("查询表达式输出：");
+            foreach (var item in newListExpress)
+            {
+                Console.WriteLine($"Id:{item.Id},CategoryName:{item.CategoryName},CreateTime:{item.CreateTime}");
+            }
+
+            var newList = listCategory.Concat(list);
+            Console.WriteLine("方法语法输出：");
+            foreach (var item in newList)
+            {
+                Console.WriteLine($"Id:{item.Id},CategoryName:{item.CategoryName},CreateTime:{item.CreateTime}");
+            }
+
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+ 结果：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180714212100091-1693744247.png)
+
+如何输出不同集合中相同类型的元素呢？
+
+Category类中的CategoryName和Product类中的Name都是string类型的，在下面的例子中输出Category中的CategoryName和Product中的Name。
+
+看下面的例子：
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace SeriesOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // 初始化数据
+            List<Category> listCategory = new List<Category>()
+            {
+              new Category(){ Id=1,CategoryName="计算机",CreateTime=DateTime.Now.AddYears(-1)},
+              new Category(){ Id=2,CategoryName="文学",CreateTime=DateTime.Now.AddYears(-2)},
+              new Category(){ Id=3,CategoryName="高校教材",CreateTime=DateTime.Now.AddMonths(-34)},
+              new Category(){ Id=4,CategoryName="心理学",CreateTime=DateTime.Now.AddMonths(-34)}
+            };
+            List<Product> listProduct = new List<Product>()
+            {
+               new Product(){Id=1,CategoryId=1, Name="C#高级编程第10版", Price=100.67,CreateTime=DateTime.Now},
+               new Product(){Id=2,CategoryId=1, Name="Redis开发和运维", Price=69.9,CreateTime=DateTime.Now.AddDays(-19)},
+               new Product(){Id=3,CategoryId=2, Name="活着", Price=57,CreateTime=DateTime.Now.AddMonths(-3)},
+               new Product(){Id=4,CategoryId=3, Name="高等数学", Price=97,CreateTime=DateTime.Now.AddMonths(-1)},
+               new Product(){Id=5,CategoryId=6, Name="国家宝藏", Price=52.8,CreateTime=DateTime.Now.AddMonths(-1)}
+            };
+
+            // 查询表达式
+            var newList = (from p in listProduct
+                           select p.Name).Concat(from c in listCategory select c.CategoryName);
+            Console.WriteLine("查询表达式输出:");
+            foreach (var item in newList)
+            {
+                Console.WriteLine(item);
+            }
+            Console.WriteLine("*************************");
+            // 方法语法
+            var newListFun = listProduct.Select(p => p.Name).Concat(listCategory.Select(c => c.CategoryName));
+            Console.WriteLine("方法语法输出:");
+            foreach (var item in newListFun)
+            {
+                Console.WriteLine(item);
+            }
+
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+结果：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180714212525028-1134526676.png)
+
+ 
+
+### 聚合操作符：Aggregate
+
+Aggregate操作符对集合值执行自定义聚合运算。来看看Aggregate的定义：
+
+```c#
+public static TSource Aggregate<TSource>(this IEnumerable<TSource> source, Func<TSource, TSource, TSource> func);
+public static TAccumulate Aggregate<TSource, TAccumulate>(this IEnumerable<TSource> source, TAccumulate seed, Func<TAccumulate, TSource, TAccumulate> func);
+public static TResult Aggregate<TSource, TAccumulate, TResult>(this IEnumerable<TSource> source, TAccumulate seed, Func<TAccumulate, TSource, TAccumulate> func, Func<TAccumulate, TResult> resultSelector);
+```
+
+ 可以看到Aggregate共有三个方法重载，这里以第一个重载方法为例。第一个重载方法里面的第二个参数是一个委托，委托的参数类型都是集合的元素类型，委托的返回值类型也是集合元素类型。例如：列出所有产品清单，每个产品名称之间用顿号连接。
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace TogetherOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            List<Product> listProduct = new List<Product>()
+            {
+               new Product(){Id=1,CategoryId=1, Name="C#高级编程第10版", Price=100.67,CreateTime=DateTime.Now},
+               new Product(){Id=2,CategoryId=1, Name="Redis开发和运维", Price=69.9,CreateTime=DateTime.Now.AddDays(-19)},
+               new Product(){Id=3,CategoryId=2, Name="活着", Price=57,CreateTime=DateTime.Now.AddMonths(-3)},
+               new Product(){Id=4,CategoryId=3, Name="高等数学", Price=97,CreateTime=DateTime.Now.AddMonths(-1)},
+               new Product(){Id=5,CategoryId=6, Name="国家宝藏", Price=52.8,CreateTime=DateTime.Now.AddMonths(-1)}
+            };
+
+            // 1、Aggregate
+            // 因为Name是string类型的，所以委托的参数和返回值的参数类型都是string类型的，直接输出即可
+            // current和next都是listProduct中的Name的值
+            var query = listProduct.Select(c => c.Name).Aggregate((current, next) => string.Format("{0}、{1}", current, next));
+            Console.WriteLine(query);
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+ 结果：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180714222953835-774677425.png)
+
+从结果可以看出：最后输出的结果是Name拼接的值，并且以顿号进行分割。
+
+#### Average操作符
+
+Average操作符和T-SQL中的Avg效果一样，是求集合中元素的平均值，来看看Average的方法定义。
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180714224705481-1217309824.png)
+
+可以看出Average有很多方法的重载，可以直接对基本数据类型的集合求平均值，也可以对其他类型集合中的某个元素求平均值，来看下面的示例：
+
+```c#
+List<int> list = new List<int>();
+list.Add(1);
+list.Add(3);
+list.Add(4);
+list.Add(5);
+list.Add(6);
+list.Add(10);
+list.Add(13);
+var result = list.Average();
+Console.WriteLine("平均值:"+result);
+```
+
+```c#
+var result = listProduct.Average(p => p.Price);
+Console.WriteLine("平均值:" + result);
+```
+
+#### Count操作符
+
+Count操作符是求集合中元素的个数。返回值类型是Int32。来看看方法的定义：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180714230429393-1498839464.png)
+
+来看下面的例子：
+
+```c#
+int count1 = listProduct.Count(); //5
+// 查询出CategoryId为1的集合的个数
+// 查询表达式
+int count2 = (from p in listProduct where p.CategoryId == 1 select p).Count();    //2
+// 方法语法
+int count3 = listProduct.Count(p => p.CategoryId == 1);    //2
+Console.WriteLine(count1);
+Console.WriteLine(count2);
+Console.WriteLine(count3);
+```
+
+#### LongCount操作符
+
+LongCount操作符也是求集合中元素的个数。返回值类型是Int64。来看看方法的定义：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180714232724839-1194897477.png)
+
+来看下面的例子：
+
+```c#
+long count1 = listProduct.LongCount(); //5
+// 查询出CategoryId为1的集合的个数
+// 查询表达式
+long count2 = (from p in listProduct where p.CategoryId == 1 select p).LongCount();    //2
+// 方法语法
+long count3 = listProduct.LongCount(p => p.CategoryId == 1);    //2
+Console.WriteLine(count1);
+Console.WriteLine(count2);
+Console.WriteLine(count3);
+```
+
+#### Max操作符
+
+Max操作符是求集合中元素的最大数。来看看方法的定义：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180714233558091-704628385.png)
+
+从方法定义中可以看出：Max操作符既可以求基本数值类型集合的最大值，也可以求其他类型集合中满足条件的最大值。看下面的例子：
+
+```c#
+List<int> list = new List<int>();
+list.Add(1);
+list.Add(3);
+list.Add(4);
+list.Add(5);
+list.Add(6);
+list.Add(10);
+list.Add(13);
+Console.WriteLine(list.Max());  //13
+Console.WriteLine(listProduct.Max(p => p.Price)); //100.67
+Console.WriteLine((from p in listProduct select p.Price).Max());  //100.67
+```
+
+#### Min操作符
+
+Min操作符是求集合中元素的最小值。来看看定义：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180714234648206-1172662237.png)
+
+从方法定义中可以看出：Min操作符既可以求基本数值类型集合的最小值，也可以求其他类型集合中满足条件的最小值。
+
+#### Sum操作符
+
+Sum操作符是求集合中元素的和。来看看定义：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180714235143479-578294516.png)
+
+从方法定义中可以看出：Sum操作符既可以求基本数值类型集合中元素的和，也可以求其他类型集合中满足条件的元素的和。
+
+### 转换操作符
+
+这些转换操作符将集合转换成数组：IEnumerable、IList、IDictionary等。转换操作符是用来实现将输入对象的类型转变为序列的功能。名称以"As"开头的转换方法可更改源集合的静态类型但不枚举（延迟加载）此源集合。名称以"To"开头的方法可枚举（即时加载）源集合并将项放入相应的集合类型。
+
+#### AsEnumerable操作符
+
+所有实现了IEnumerable<T>接口的类型都可以调用此方法来获取一个IEnumerable<T>集合。AsEnumerable操作符可以将一个类型为IEnumerable<T>的输入序列转换成一个IEnumerable<T>的输出序列，其主要用于将一个实现了IEnumerable<T>接口的对象转换成一个标准的IEnumerable<T>接口对象。在Linq中，不同领域的Linq实现都有自己专属的操作符。
+
+例如：IQueryable<T>通常是Linq to SQL的返回类型，当我们之间在上面调用Where<>方法时，调用的是Linq to SQL的扩展方法，因此有时候我们需要转换为标准的IEnumerable<T>，然后在调用Linq to OBJECT的扩展方法。来看方法的定义：
+
+```c#
+public static IEnumerable<TSource> AsEnumerable<TSource>(this IEnumerable<TSource> source)
+```
+
+ 看看下面的例子：
+
+```c#
+DataTable dt = new DataTable();
+// 将dt先使用AsEnumerable()操作符进行转换，然后在调用Linq to Object 的where方法
+var list= dt.AsEnumerable().Where(p => p.Name.length > 0);
+```
+
+#### ToArray操作符
+
+ToArray操作符可以在IEnumerable<T>类型的任何派生对象上调用，返回值为T类型的数组。其方法定义如下：
+
+```c#
+public T[] ToArray();
+```
+
+```c#
+List<int> list = new List<int>();
+list.Add(1);
+list.Add(3);
+list.Add(4);
+// 将List<int>类型的集合转换成int[]数组
+int[] intArray = list.ToArray();
+```
+
+#### ToDictionary操作符
+
+ToDictionary操作符根据指定的键选择器函数，从IEnumerable<T>创建一个Dictionary<TKey,TValue>。
+
+开看下面的例子。
+
+```c#
+List<Category> listCategory = new List<Category>()
+{
+        new Category(){ Id=1,CategoryName="计算机",CreateTime=DateTime.Now.AddYears(-1)},
+        new Category(){ Id=2,CategoryName="文学",CreateTime=DateTime.Now.AddYears(-2)},
+        new Category(){ Id=3,CategoryName="高校教材",CreateTime=DateTime.Now.AddMonths(-34)},
+        new Category(){ Id=4,CategoryName="心理学",CreateTime=DateTime.Now.AddMonths(-34)}
+};
+var dict= listCategory.ToDictionary(c => c.Id, c => c.CategoryName);
+foreach(var item in dict)
+{
+        Console.WriteLine($"key:{item.Key},value:{item.Value}");
+}
+```
+
+ 结果：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180715082238619-953432268.png)
+
+注意：
+
+1. 如果省略ToDictionary()方法的第二个参数（值选择函数），那么value将会保存一个类别对象。看下面的例子：
+
+```c#
+var dict = listCategory.ToDictionary(c=>c.Id);
+foreach (var item in dict)
+{
+    Console.WriteLine($"key:{item.Key},Id:{dict[item.Key].Id},CategoryName:{dict[item.Key].CategoryName},CreateTime:{dict[item.Key].CreateTime}");
+}
+```
+
+在程序运行时打断点，查询value的类型：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180715083222709-850428343.png)
+
+从截图中可以看出：这时value的类型是Category类型。其输出结果如下：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180715083304217-90542941.png)
+
+2. 如果key值为null或者出现重复的key，那么将会导致程序抛出异常。（字典的key值不可以是重复的）
+
+#### ToList操作符
+
+ToList操作符可以在IEnumerable<T>类型的任何派生对象上使用，返回值是List<T>类型的集合。其定义如下：
+
+```c#
+public static List<TSource> ToList<TSource>(this IEnumerable<TSource> source);
+```
+
+ 来看下面的例子：
+
+```c#
+int[] intArray = { 1, 2, 3, 56, 78, 34 };
+List<int> list = intArray.ToList();
+```
+
+#### ToLookUp操作符
+
+ToLookUp操作符将创建一个LookUp<TKey,TElement>对象，这是一个one-to-many的集合，一个key可以对应多个value值。其方法定义如下：
+
+```c#
+public static ILookup<TKey, TSource> ToLookup<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector);
+public static ILookup<TKey, TElement> ToLookup<TSource, TKey, TElement>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TElement> elementSelector);
+public static ILookup<TKey, TElement> ToLookup<TSource, TKey, TElement>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TElement> elementSelector, IEqualityComparer<TKey> comparer);
+public static ILookup<TKey, TSource> ToLookup<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, IEqualityComparer<TKey> comparer);
+```
+
+从方法定义中可以看出：ToLookUp的value值的类型和集合中元素的类型一致。如果一个key对应多个value值，那么value会是TSource类型的集合。 
+
+来看下面的例子。
+
+```c#
+List<Product> listProduct = new List<Product>()
+{
+      new Product(){Id=1,CategoryId=1, Name="C#高级编程第10版", Price=100.67,CreateTime=DateTime.Now},
+      new Product(){Id=2,CategoryId=1, Name="Redis开发和运维", Price=69.9,CreateTime=DateTime.Now.AddDays(-19)},
+      new Product(){Id=3,CategoryId=2, Name="活着", Price=57,CreateTime=DateTime.Now.AddMonths(-3)},
+      new Product(){Id=4,CategoryId=3, Name="高等数学", Price=97,CreateTime=DateTime.Now.AddMonths(-1)},
+      new Product(){Id=5,CategoryId=6, Name="国家宝藏", Price=52.8,CreateTime=DateTime.Now.AddMonths(-1)}
+};
+var list = listProduct.ToLookup(p => p.CategoryId, p => p.Name);
+foreach (var item in list)
+{
+      Console.WriteLine($"key:{item.Key}");
+      foreach (var p in item)
+      {
+          Console.WriteLine($"value:{p}");
+      }
+}
+```
+
+结果：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180715090739472-726363143.png)
+
+注意：
+
+1. 如果省略ToLookUp()方法的第二个参数（值选择函数），那么value将会保存一个类别对象。看下面的例子： 
+
+   ```c#
+   var list1 = listProduct.ToLookup(p => p.CategoryId);
+   foreach (var item in list1)
+   {
+         Console.WriteLine($"key:{item.Key}");
+         foreach (var p in item)
+         {
+             Console.WriteLine($"Id:{p.Id},CategoryId:{p.CategoryId},Name:{p.Name},CreateTime:{p.CreateTime}");
+         }
+   }
+   ```
+
+   程序运行时打断点，查看value值的类型：
+
+   ![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180715091800273-2049148501.png)
+
+   从上面的截图中能够看出：这时value的类型是Product类型。运行结果如下：
+
+   ![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180715091902176-1384460833.png)
+
+2. ToLookUp和GroupBy操作很相似，只不过GroupBy是延迟加载的，ToLookUp是立即加载的。
+
+#### Cast操作符
+
+Cast操作符用于将一个类型为IEnumerable的集合对象转换为IEnumerable<T>类型的集合对象。也就是非泛型集合转成泛型集合，因为在Linq to OBJECT中，绝大部分操作符都是针对IEnumerable<T>类型进行的扩展方法。因此对非泛型集合并不适用。来看方法定义：
+
+```c#
+public static IEnumerable<TResult> Cast<TResult>(this IEnumerable source);
+```
+
+ 来看下面的例子：
+
+```c#
+ArrayList arrayList = new ArrayList();
+arrayList.Add(1);
+arrayList.Add(2);
+arrayList.Add(3);
+//非泛型转换成泛型
+var list = arrayList.Cast<int>();
+foreach (var item in list)
+{
+     Console.WriteLine(item);
+}
+```
+
+结果：
+
+![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180715093214820-1453936968.png)
+
+注意：
+
+1. 使用Cast()方法时必须要传入类型参数。
+
+2. 序列中的元素必须要能转换为类型 TResult。看下面的例子：
+
+   ```c#
+   ArrayList arrayList = new ArrayList();
+   arrayList.Add(1);
+   arrayList.Add("2");
+   arrayList.Add(3);
+   //非泛型转换成泛型
+   var list = arrayList.Cast<int>();
+   foreach (var item in list)
+   {
+        Console.WriteLine(item);
+   }
+   ```
+
+   程序运行结果：
+
+   ![img](https://images2018.cnblogs.com/blog/1033738/201807/1033738-20180715093553427-1535202287.png)
+
+    
 
