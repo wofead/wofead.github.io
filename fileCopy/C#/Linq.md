@@ -2252,3 +2252,611 @@ foreach (var item in list)
 
     
 
+### 元素操作符
+
+元素操作符仅返回一个元素。
+
+#### Fitst操作符
+
+First操作符将返回序列中的第一个元素。如果序列中不包含任何元素，则First<T>方法将引发异常。来看看First()方法的定义：
+
+![img](../image/Linq/1033738-20180715201841865-797617093.png)
+
+从定义中可以看出：First()方法共有两个重载。First<T>的有参重载方法中可以指定一个条件，操作将返回序列中满足此条件的第一个元素。从查询结果上看，source.First<T>(条件)方法与source.where(条件).First<T>是一样的，但是需要注意的是：First<T>(条件)操作将返回序列中满足此条件的第一个元素，这将会忽略后面的遍历操作，效率更高。
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ElementOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // First
+            List<Product> listProduct = new List<Product>()
+            {
+               new Product(){Id=1,CategoryId=1, Name="C#高级编程第10版", Price=100.67,CreateTime=DateTime.Now},
+               new Product(){Id=2,CategoryId=1, Name="Redis开发和运维", Price=69.9,CreateTime=DateTime.Now.AddDays(-19)},
+               new Product(){Id=3,CategoryId=2, Name="活着", Price=57,CreateTime=DateTime.Now.AddMonths(-3)},
+               new Product(){Id=4,CategoryId=3, Name="高等数学", Price=97,CreateTime=DateTime.Now.AddMonths(-1)},
+               new Product(){Id=5,CategoryId=6, Name="国家宝藏", Price=52.8,CreateTime=DateTime.Now.AddMonths(-1)}
+            };
+
+            // 方法语法
+            var productExp = listProduct.First();
+            Console.WriteLine($"Id:{productExp.Id},CategoryId:{productExp.CategoryId},Name:{productExp.Name},Price:{productExp.Price},CreateTime:{productExp.CreateTime}");
+            // 查询表达式
+            var productFun = (from p in listProduct select p).First();
+            Console.WriteLine($"Id:{productFun.Id},CategoryId:{productFun.CategoryId},Name:{productFun.Name},Price:{productFun.Price},CreateTime:{productFun.CreateTime}");
+            // 根据委托进行刷选
+            // 查询CategoryId为1的集合的第一个元素
+            // 方法语法
+            var productDeleExp = listProduct.First(p => p.CategoryId.Equals(1));
+            Console.WriteLine($"Id:{productDeleExp.Id},CategoryId:{productDeleExp.CategoryId},Name:{productDeleExp.Name},Price:{productDeleExp.Price},CreateTime:{productDeleExp.CreateTime}");
+            // 查询表达式
+            var productDeleFun = (from p in listProduct where p.CategoryId.Equals(1) select p).First();
+            Console.WriteLine($"Id:{productDeleFun.Id},CategoryId:{productDeleFun.CategoryId},Name:{productDeleFun.Name},Price:{productDeleFun.Price},CreateTime:{productDeleFun.CreateTime}");
+            // 或者使用下面的查询表达式
+            var product = (from p in listProduct select p).First(z => z.CategoryId.Equals(1));
+            Console.WriteLine($"Id:{product.Id},CategoryId:{product.CategoryId},Name:{product.Name},Price:{product.Price},CreateTime:{product.CreateTime}");
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+结果：
+
+![img](../image/Linq/1033738-20180715201942956-105305617.png)
+
+注意：
+
+如果序列中不包含任何元素，则First<T>方法将引发异常。
+
+#### FirstOrDefault操作符
+
+FirstOrDefault操作符也是返回序列中的第一个元素。与First()操作符不同的是：如果序列中不包含任何元素，FirstOrDefault则返回默认值，程序不会报错。来看看定义：
+
+![img](../image/Linq/1033738-20180715203411059-1883080830.png)
+
+从定义中可以看出：FirstOrDefault和First操作符的重载方法一致。
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ElementOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // First
+            List<Product> listProduct = new List<Product>()
+            {
+               new Product(){Id=1,CategoryId=1, Name="C#高级编程第10版", Price=100.67,CreateTime=DateTime.Now},
+               new Product(){Id=2,CategoryId=1, Name="Redis开发和运维", Price=69.9,CreateTime=DateTime.Now.AddDays(-19)},
+               new Product(){Id=3,CategoryId=2, Name="活着", Price=57,CreateTime=DateTime.Now.AddMonths(-3)},
+               new Product(){Id=4,CategoryId=3, Name="高等数学", Price=97,CreateTime=DateTime.Now.AddMonths(-1)},
+               new Product(){Id=5,CategoryId=6, Name="国家宝藏", Price=52.8,CreateTime=DateTime.Now.AddMonths(-1)}
+            };
+
+            // 方法语法
+            var productExp = listProduct.FirstOrDefault();
+            Console.WriteLine($"Id:{productExp.Id},CategoryId:{productExp.CategoryId},Name:{productExp.Name},Price:{productExp.Price},CreateTime:{productExp.CreateTime}");
+            // 查询表达式
+            var productFun = (from p in listProduct select p).FirstOrDefault();
+            Console.WriteLine($"Id:{productFun.Id},CategoryId:{productFun.CategoryId},Name:{productFun.Name},Price:{productFun.Price},CreateTime:{productFun.CreateTime}");
+            // 根据委托进行刷选
+            // 查询CategoryId为1的集合的第一个元素
+            // 方法语法
+            var productDeleExp = listProduct.FirstOrDefault(p => p.CategoryId.Equals(1));
+            Console.WriteLine($"Id:{productDeleExp.Id},CategoryId:{productDeleExp.CategoryId},Name:{productDeleExp.Name},Price:{productDeleExp.Price},CreateTime:{productDeleExp.CreateTime}");
+            // 查询表达式
+            var productDeleFun = (from p in listProduct where p.CategoryId.Equals(1) select p).FirstOrDefault();
+            Console.WriteLine($"Id:{productDeleFun.Id},CategoryId:{productDeleFun.CategoryId},Name:{productDeleFun.Name},Price:{productDeleFun.Price},CreateTime:{productDeleFun.CreateTime}");
+            // 或者使用下面的查询表达式
+            var product = (from p in listProduct select p).FirstOrDefault(z => z.CategoryId.Equals(1));
+            Console.WriteLine($"Id:{product.Id},CategoryId:{product.CategoryId},Name:{product.Name},Price:{product.Price},CreateTime:{product.CreateTime}");
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+注意：
+
+与First()操作符不同的是：如果序列中不包含任何元素，FirstOrDefault则返回默认值，程序不会报错。如果是引用类型 值为`null`
+
+#### Last操作符
+
+Last方法将返回序列中的最后一个元素。
+
+注意：
+
+Last操作符和First操作符一样，如果序列中不包含任何元素，则程序会直接报错。
+
+#### LastOrDefault
+
+LastOrDefault操作符将返回序列中的最后一个元素；如果序列中不包含任何元素，则返回默认值。
+
+#### ElementAt操作符
+
+ElementAt操作符返回序列中指定索引处的元素。来看下面的例子：
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ElementOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // First
+            List<Product> listProduct = new List<Product>()
+            {
+               new Product(){Id=1,CategoryId=1, Name="C#高级编程第10版", Price=100.67,CreateTime=DateTime.Now},
+               new Product(){Id=2,CategoryId=1, Name="Redis开发和运维", Price=69.9,CreateTime=DateTime.Now.AddDays(-19)},
+               new Product(){Id=3,CategoryId=2, Name="活着", Price=57,CreateTime=DateTime.Now.AddMonths(-3)},
+               new Product(){Id=4,CategoryId=3, Name="高等数学", Price=97,CreateTime=DateTime.Now.AddMonths(-1)},
+               new Product(){Id=5,CategoryId=6, Name="国家宝藏", Price=52.8,CreateTime=DateTime.Now.AddMonths(-1)}
+            };
+
+            // 方法语法
+            // 查询集合中索引为3的元素 即Id=4
+            var productExp = listProduct.ElementAt(3);
+            Console.WriteLine($"Id:{productExp.Id},CategoryId:{productExp.CategoryId},Name:{productExp.Name},Price:{productExp.Price},CreateTime:{productExp.CreateTime}");
+            // 查询表达式
+            // 查询集合中索引为2的元素 即Id=3
+            var productFun = (from p in listProduct select p).ElementAt(2);
+            Console.WriteLine($"Id:{productFun.Id},CategoryId:{productFun.CategoryId},Name:{productFun.Name},Price:{productFun.Price},CreateTime:{productFun.CreateTime}");
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+注意：
+
+ElementAt()的参数值必须是集合中存在的索引，否则程序会直接报错，看下面的例子：
+
+#### ElementAtOrDefault操作符
+
+ElementAtOrDefault方法将返回序列中指定索引处的元素；如果索引超出范围，则返回默认值。
+
+#### Single操作符
+
+Single操作符将从一个序列中返回单个元素，如果该序列包含多个元素，或者没有元素数为0，则会引发异常。看看定义：
+
+![img](../image/Linq/1033738-20180715221856152-260011160.png)
+
+从定义中能够看出：Single操作符共有两个重载的方法。无参的方法重载将从一个序列中返回单个元素，如果该序列包含多个元素，或者没有元素数为0，则会引发异常。参数为委托的方法重载将返回满足委托条件的单个元素。
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ElementOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+
+            List<Product> listProduct = new List<Product>()
+            {
+               new Product(){Id=1,CategoryId=1, Name="C#高级编程第10版", Price=100.67,CreateTime=DateTime.Now}
+            };
+
+            // 方法语法
+            var productExp = listProduct.Single();
+            Console.WriteLine($"Id:{productExp.Id},CategoryId:{productExp.CategoryId},Name:{productExp.Name},Price:{productExp.Price},CreateTime:{productExp.CreateTime}");
+            // 查询表达式
+            var productFun = (from p in listProduct select p).Single();
+            Console.WriteLine($"Id:{productFun.Id},CategoryId:{productFun.CategoryId},Name:{productFun.Name},Price:{productFun.Price},CreateTime:{productFun.CreateTime}");
+            // 根据委托进行刷选
+            // 查询CategoryId为1的集合的第一个元素
+            // 方法语法
+            var productDeleExp = listProduct.Single(p => p.CategoryId.Equals(1));
+            Console.WriteLine($"Id:{productDeleExp.Id},CategoryId:{productDeleExp.CategoryId},Name:{productDeleExp.Name},Price:{productDeleExp.Price},CreateTime:{productDeleExp.CreateTime}");
+            // 查询表达式
+            var productDeleFun = (from p in listProduct where p.CategoryId.Equals(1) select p).Single();
+            Console.WriteLine($"Id:{productDeleFun.Id},CategoryId:{productDeleFun.CategoryId},Name:{productDeleFun.Name},Price:{productDeleFun.Price},CreateTime:{productDeleFun.CreateTime}");
+            // 或者使用下面的查询表达式
+            var product = (from p in listProduct select p).Single(z => z.CategoryId.Equals(1));
+            Console.WriteLine($"Id:{product.Id},CategoryId:{product.CategoryId},Name:{product.Name},Price:{product.Price},CreateTime:{product.CreateTime}");
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+ 结果：
+
+![img](../image/Linq/1033738-20180715223107271-121332306.png)
+
+注意：
+
+如果序列包含多个元素，或者序列元素数为0，则会引发异常。看下面的例子。
+
+#### SingleOrDefault操作符
+
+SingleOrDefault方操作符将从一个序列中返回单个元素。如果元素数为0，则返回默认值。看定义：
+
+![img](../image/Linq/1033738-20180715224855975-2144506347.png)
+
+从定义中可以看出：SingleOrDefault的定义和Single的定义一致。
+
+### 限定操作符
+
+限定操作符运算返回一个Boolean值，该值指示序列中是否有一些元素满足条件或者是否所有元素都满足条件。
+
+#### All操作符
+
+All方法用来确定是否序列中的所有元素都满足条件。看下面的例子：
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace LimitOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            string[] source1 = new string[] { "A", "B", "C", "D", "E", "F" };
+
+            string[] source2 = new string[] { "A", "A", "A", "A", "A", "A" };
+
+            Console.WriteLine(source1.All(w => w == "A")); //输出"False"
+
+            Console.WriteLine(source2.All(w => w == "A")); //输出 "True"
+
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+ 结果：
+
+![img](../image/Linq/1033738-20180715234948553-1329166954.png)
+
+#### Any操作符
+
+先来看看Any的定义：
+
+![img](../image/Linq/1033738-20180715235403244-1947172307.png)
+
+从定义中可以看出：Any有两个重载方法。Any方法的无参方式用来确定序列是否包含任何元素。Any方法的有参方式用来确定序列中是否有元素满足条件。只要有一个元素符合指定条件即返回true，如果一个符合指定条件的元素都没有则返回false。
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace LimitOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            string[] source1 = new string[] { "A", "B", "C", "D", "E", "F" };
+            string[] source2 = new string[] { "A", "A", "A", "A", "A", "A" };
+            Console.WriteLine(source1.Any()); // 输出"True"
+            Console.WriteLine(source1.Any(w => w == "A")); //输出 "True"
+            Console.WriteLine(source2.Any(w => w == "G")); //输出 "False"
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+ 结果：
+
+![img](../image/Linq/1033738-20180716000549443-1007537066.png)
+
+#### Contains操作符
+
+Contains方法用来确定序列是否包含满足指定条件的元素。如果有返回true，否则返回false。看下面的例子：
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace LimitOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            string[] source1 = new string[] { "A", "B", "C", "D", "E", "F" };
+
+            Console.WriteLine(source1.Contains("A")); //输出 "True"
+
+            Console.WriteLine(source1.Contains("G")); //输出 "False"
+
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+ 结果：
+
+![img](../image/Linq/1033738-20180716002540621-1701740212.png)
+
+Contains还有另外一个重载的方法，看定义：
+
+```c#
+public static bool Contains<TSource>(this IEnumerable<TSource> source, TSource value, IEqualityComparer<TSource> comparer);
+
+```
+
+ 该重载方法的参数是一个实现IEqualityComparer<TSource>接口的类型。看下面的例子。
+
+定义实现IEqualityComparer<TSource>接口的类型：
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace LimitOperation
+{
+    /// <summary>
+    /// EqualityComparerEquals类实现IEqualityComparer接口
+    /// </summary>
+    public class EqualityComparerEquals : IEqualityComparer<string>
+    {
+        public bool Equals(string x, string y)
+        {
+            return x == y;
+        }
+        public int GetHashCode(string obj)
+        {
+            return obj.ToString().GetHashCode();
+        }
+    }
+}
+```
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace LimitOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            string[] source1 = new string[] { "A", "B", "C", "D", "E", "F" };
+
+            var comparer = source1.Contains("F", new EqualityComparerEquals());
+            Console.WriteLine(comparer); //输出"True"
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+结果：
+
+![img](../image/Linq/1033738-20180716004817431-595832501.png)
+
+注意：在自定义的类中，x相当于数组中的每一个元素，y是要比较的元素：F。
+
+### 分区操作符
+
+Linq中的分区指的是在不重新排列元素的情况下，将输入序列划分为两部分，然后返回其中一个部分的操作。
+
+#### Take操作符
+
+Take(int n)表示将从序列的开头返回数量为n的连续元素，常用于分页。其定义如下：
+
+```c#
+public static IEnumerable<TSource> Take<TSource>(this IEnumerable<TSource> source, int count);
+```
+
+该方法只接受一个整数，表示要返回的结果的数量。 
+
+看下面的例子：
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace PartitionOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            int[] source = new int[] { 86, 2, 77, 94, 100, 65, 5, 22, 70, 55, 81, 66, 45 };
+            // 返回6个连续的数据
+            var q = source.Take(6);
+
+            foreach (var item in q)
+            {
+                Console.WriteLine(item);
+            }
+
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+ 结果：
+
+![img](../image/Linq/1033738-20180716010348697-806288178.png)
+
+#### TakeWhile操作符
+
+TakeWhile操作符用于从输入序列中返回指定数量且满足一定条件的元素。TakeWhile方法执行时将逐个比较序列中的每个元素是否满足指定条件，直到碰到不符合指定条件的元素时，返回前面所有的元素组成的序列。看方法的定义;
+
+```c#
+public static IEnumerable<TSource> TakeWhile<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate);
+public static IEnumerable<TSource> TakeWhile<TSource>(this IEnumerable<TSource> source, Func<TSource, int, bool> predicate);
+```
+
+当TakeWhile操作符被调用时，会将source序列中的每一个元素顺序传递给委托predicate，只有那些使得predicate返回值为true的元素才会被添加到结果序列中。要特别注意的是，当TakeWhile操作符在查找过程中，遇到第一个返回false的元素就会立即停止执行，跳出，不管后面还有没有符合条件的元素，即使后面有符合条件的元素也不会要了。对于第二个扩展方法，委托里面含有一个int类型的参数，该参数代表集合的下标，可以依据此进行一些据下标操作的逻辑。
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace PartitionOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            int[] source = new int[] { 86, 2, 77, 94, 99, 100, 5, 22, 70, 55, 100, 66, 45 };
+            // 返回集合中元素值小于100的序列
+            var q = source.TakeWhile(i => i < 100);
+
+            foreach (var item in q)
+            {
+                Console.WriteLine(item);
+            }
+
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+#### Skip操作符
+
+Skip操作符用于从输入序列中跳过指定数量的元素，返回由序列中剩余的元素所组成的新序列。来看下Skip的方法定义：
+
+```c#
+public static IEnumerable<TSource> Skip<TSource>(this IEnumerable<TSource> source, int count);
+```
+
+可以看到，该扩展方法只接受一个整形的参数，表示跳过的元素数量。
+
+看下面的例子：
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace PartitionOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            int[] source = new int[] { 86, 2, 77, 94, 100, 65, 5, 22, 70, 55, 81, 66, 45 };
+            // 跳过5个元素
+            var q = source.Skip(5);
+
+            foreach (var item in q)
+            {
+                Console.WriteLine(item);
+            }
+
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+ 结果：
+
+![img](../image/Linq/1033738-20180716011459961-1728606028.png)
+
+#### SkipWhile操作符
+
+SkipWhile操作符用于从输入序列中跳过满足一定条件指定数量的元素，与TakeWhile操作符类似。来看下SkipWhile操作符的方法定义：
+
+```c#
+public static IEnumerable<TSource> SkipWhile<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate);
+public static IEnumerable<TSource> SkipWhile<TSource>(this IEnumerable<TSource> source, Func<TSource, int, bool> predicate);
+```
+
+ 当SkipWhile操作符被调用时，会将输入序列中的元素走位参数传递给委托predicate，只要predicate的返回值为true，该元素就会被跳过，继续下一个元素，直到遇到一个使predicate返回值为false的元素，此元素以及输入序列中剩余的元素将组合一个新的序列返回。注意后面的不再判断，直接添加到返回序列。
+
+第二个扩展方法的委托里的参数多了个int，还是代表下标，可以根据下标做一些逻辑处理。
+
+#### 使用Take和Skip实现分页
+
+```c#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace PartitionOperation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // 每页显示的条数
+            int PageSize = 3;
+            // 页数从0开始
+            int PageNum = 0;
+            int[] source = new int[] { 86, 2, 77, 94, 100, 65, 5, 22, 70, 55, 81, 66, 45 };
+            while(PageNum*PageSize<source.Length)
+            {
+                // 分页
+                var query = source.Skip(PageNum * PageSize).Take(PageSize);
+                Console.WriteLine($"输出第{PageNum+1}页记录");
+                foreach (var item in query)
+                {
+                    Console.WriteLine(item);
+                }
+                PageNum++;
+            }
+
+
+            Console.ReadKey();
+        }
+    }
+}
+```
+
