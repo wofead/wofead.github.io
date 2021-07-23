@@ -29,7 +29,7 @@
     }
 ```
 
-##### 创建一个用于绘制`MyStruct`的Darwe类
+##### 创建一个用于绘制`MyStruct`的Darwer类
 
 > 此绘制类需要继承`OdinValueDrawer`，并传入对应的类型
 
