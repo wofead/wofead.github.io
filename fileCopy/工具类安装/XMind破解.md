@@ -22,3 +22,11 @@
 ## Crack文件
 
 https://www.teambition.com/project/605c00e502a7659ab6836a51/works/605c0533f5c99f0044715790/work/605c053b686f9b0044b60dde
+
+
+
+## 第二种方式（新）
+
+将arr文件放到安装目录的resources中，替换原来的。
+
+arr文件在阿里云盘中。

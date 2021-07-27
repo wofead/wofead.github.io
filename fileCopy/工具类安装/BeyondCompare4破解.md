@@ -14,3 +14,31 @@
 1、在搜索栏中输入 regedit ，打开注册表
 2、删除项目CacheId ：
 HKEY_CURRENT_USER\Software\Scooter Software\Beyond Compare 4\CacheId
+
+
+
+> --- BEGIN LICENSE KEY ---6TTCoWi2N0Pv+o2HGfqUpZfuaMhtf2zX0u1OuNeqTYkKKWh-CKwBWkPUG
+>
+> 
+>
+> 3+CiAQ2q4MNPbf0t8+gmPdo+Vyw64aU-zuQQt9d7Q6EcJ+T42by0E+kxf
+>
+> 
+>
+> +q3QLs40H+RD3h5OLjFGpxClodRnTCNoAM39xsWm2aHZI0Z9KdXzLo1fo
+>
+> 
+>
+> 1OdNlaptoK17SsxNK-7JUtTztLwBM8BUwWA24ghoeLhFq39FMP+pcdU7R
+>
+> 
+>
+> ttFJoosVk3d-DRrDH0EARo6GXWEeeUgnyjdWKv5ElwrHWw2HMpfFq9VRf
+>
+> 
+>
+> MqcJV00ePAUB4MT3zPE43Tu0BDt-WXYSpUqf7AjaWnBC7MpNfdkS0mWXk
+>
+> 
+>
+> --- END LICENSE KEY -----
