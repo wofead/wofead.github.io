@@ -36,33 +36,26 @@ lua_pop(l,1);
 
 通过lua_call和lua_pcall实现，先把函数压栈，这里的函数是在lua中的function，由于上面C函数可以关联到lua的某个table中，所以，理论上也可以是C函数，然后把返回结果再压栈。具体参数含义见API说明。
 
-> 作者：被遗失De跳刀
-> 链接：https://zhuanlan.zhihu.com/p/25985695
-> 来源：知乎
-> 著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
->
-> 
->
 > The following example shows how the host program can do the equivalent to this Lua code:
->
+> 
 > ```lua
 > a = f("how", t.x, 14)
-> ```
->
-> Here it is in C:
->
-> ```c
->  lua_getfield(L, LUA_GLOBALSINDEX, "f"); /* function to be called */
->  lua_pushstring(L, "how");                        /* 1st argument */
->  lua_getfield(L, LUA_GLOBALSINDEX, "t");   /* table to be indexed */
->  lua_getfield(L, -1, "x");        /* push result of t.x (2nd arg) */
->  lua_remove(L, -2);                  /* remove 't' from the stack */
->  lua_pushinteger(L, 14);                          /* 3rd argument */
->  lua_call(L, 3, 1);     /* call 'f' with 3 arguments and 1 result */
+>```
+> 
+>Here it is in C:
+> 
+>```c
+> lua_getfield(L, LUA_GLOBALSINDEX, "f"); /* function to be called */
+> lua_pushstring(L, "how");                        /* 1st argument */
+> lua_getfield(L, LUA_GLOBALSINDEX, "t");   /* table to be indexed */
+>lua_getfield(L, -1, "x");        /* push result of t.x (2nd arg) */
+> lua_remove(L, -2);                  /* remove 't' from the stack */
+>lua_pushinteger(L, 14);                          /* 3rd argument */
+> lua_call(L, 3, 1);     /* call 'f' with 3 arguments and 1 result */
 >  lua_setfield(L, LUA_GLOBALSINDEX, "a");        /* set global 'a' */
-> ```
->
-> Note that the code above is “balanced”: at its end, the stack is back to its original configuration. This is considered good programming practice.
+>  ```
+>  
+>  Note that the code above is “balanced”: at its end, the stack is back to its original configuration. This is considered good programming practice.
 
 ## C#调用C
 
