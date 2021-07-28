@@ -1,17 +1,5 @@
----
-layout:     post
-title:      SVN和Git的区别
-subtitle:   talk about svn and git
-date:       2019-4-11
-author:     Jow
-header-img: img/post-bg-2015.jpg
-catalog: 	 true 
-tags:
-    - Git
-
----
-
 ### 目录
+
 1. 分布式与集中式
 2. 存储方式不同
 3. 全局版本号
