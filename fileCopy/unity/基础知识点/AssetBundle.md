@@ -796,3 +796,14 @@ Build 选项卡提供基本构建功能来帮助您开始使用资源包。在�
   - *Strict Mode* - 如果在此期间报告任何错误，则构建无法成功。
   - *Dry Run Build* - 进行干运行构建。
 - *Build* - 执行构建。
+
+
+
+## 建议
+
+1. 把资源包部署在StreamingAssets中——用BuildAssetBundleOptions.ChunkBasedCompression方式打包并用AssetBundle.LoadFromFileAsync来加载它，这提供了数据压缩和最快加载的性能，并且内存开销等于读取缓冲器。
+2. 下载资源包时，使用默认的打包选项（LZMA压缩），并且用LoadFromCacheOrDownload/WebRequest来下载和缓存它。这样为了进一步加载，会有最好的压缩比和AssetBundle.LoadFromFile加载性能。
+3. 加密包——使用BuildAssetBundleOptions.ChunkBasedCompression选项打包，并且用LoadFromMemoryAsync加载。（这基本是唯一使用LoadFromMemoryAsync加载的情况）
+4. 自定义压缩——使用BuildAssetBundleOptions.UncompressedAssetBundle选项来打包，并且在用自定义的压缩方式解压资源包后，使用AssetBundle.LoadFromFileAsync来加载。
+
+通常应该选择异步的方式进行加载，因为这样不会阻塞主线程，并且能对加载操作有效的排序，千万不要在同一时间里调用同步和异步函数，这可能会引起主线程的停顿。
